@@ -1,0 +1,64 @@
+╔══════════════════════════════════════════════════════════════════╗
+║         USH CHATBOT — INSTRUCCIONES PARA EL SERVIDOR            ║
+╚══════════════════════════════════════════════════════════════════╝
+
+ANTES DE EJECUTAR EL SCRIPT, HAY DOS COSAS QUE DEBES HACER:
+
+┌─────────────────────────────────────────────────────────────────┐
+│  PASO 1 — Editar el archivo backend\.env                        │
+│                                                                 │
+│  Abre ese archivo con el Bloc de notas y cambia:                │
+│                                                                 │
+│  ALLOWED_ORIGINS=  → el dominio de WordPress                    │
+│                      ej: https://ush.edu.co                     │
+│                                                                 │
+│  DB_HOST=          → IP del servidor PostgreSQL                 │
+│  DB_USER=          → usuario de PostgreSQL                      │
+│  DB_PASSWORD=      → contraseña de PostgreSQL                   │
+│                                                                 │
+│  GOOGLE_API_KEY=   → clave nueva de Google Gemini               │
+│                      (la anterior quedó expuesta)               │
+│                      Obtenerla en: aistudio.google.com          │
+│                                                                 │
+│  El JWT_SECRET YA ESTÁ generado, no lo cambies.                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  PASO 2 — Ejecutar el script de instalación                     │
+│                                                                 │
+│  Archivo: 2-instalar-en-servidor.ps1                            │
+│                                                                 │
+│  → Clic derecho sobre ese archivo                               │
+│  → "Ejecutar como administrador"                                │
+│                                                                 │
+│  El script hace todo solo:                                      │
+│    ✓ Instala Node.js si no está                                 │
+│    ✓ Instala el gestor de procesos (PM2)                        │
+│    ✓ Pone el backend a correr en el puerto 3001                 │
+│    ✓ Publica el widget en IIS                                   │
+│    ✓ Al final muestra las URLs y el código para WordPress       │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  PASO 3 — Agregar el widget a WordPress                         │
+│                                                                 │
+│  El script del paso 2 te dará el código exacto al final.        │
+│  Será algo así (con la IP real del servidor):                   │
+│                                                                 │
+│  1. En WordPress, instalar el plugin gratuito "WPCode"          │
+│     (buscar en Plugins → Añadir nuevo)                          │
+│                                                                 │
+│  2. Ir a WPCode → Header & Footer → pestaña "Footer"           │
+│                                                                 │
+│  3. Pegar el código que muestra el script                       │
+│                                                                 │
+│  4. Guardar. El botón del chat aparece en todo el sitio. ✓     │
+└─────────────────────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  COMANDOS ÚTILES (para después de la instalación):
+
+  pm2 status          → ver si el backend está corriendo
+  pm2 logs            → ver errores en tiempo real
+  pm2 restart all     → reiniciar si algo falla
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+*/node_modules/
+
+# Compilados
+dist/
+dist-widget/
+*/dist/
+
+# Variables de entorno (NUNCA versionar)
+.env
+.env.local
+.env.production
+
+# Subidas y logs
+backend/uploads/
+backend/logs/
+*.log
+
+# IDEs
+.vscode/settings.json
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
