@@ -7,7 +7,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler';
-import { requestLogger } from './middleware/logger';
 import { globalRateLimit } from './middleware/rateLimit';
 import chatRoutes from './routes/chat';
 import documentRoutes from './routes/documents';
@@ -34,7 +33,7 @@ if (missing.length > 0) {
 
 // Advertir (no bloquear) sobre vars opcionales recomendadas en producción
 if (process.env.NODE_ENV === 'production') {
-  const recommended = ['ALLOWED_ORIGINS', 'CHROMA_URL'];
+  const recommended = ['ALLOWED_ORIGINS', 'CHROMA_URL', 'WHATSAPP_APP_SECRET'];
   const missingRec = recommended.filter((v) => !process.env[v]);
   if (missingRec.length > 0) {
     console.warn(`[WARN] Variables recomendadas no configuradas: ${missingRec.join(', ')}`);
@@ -81,11 +80,10 @@ app.use(globalRateLimit);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging HTTP
+// Logging HTTP — morgan registra método, URL, status y tiempo; es suficiente
 app.use(morgan('combined', {
   stream: { write: (msg) => logger.http(msg.trim()) },
 }));
-app.use(requestLogger);
 
 // Ruta de salud
 app.get('/health', (_req, res) => {
@@ -136,13 +134,18 @@ async function bootstrap() {
 // Graceful shutdown — cierra conexiones limpiamente ante señales del sistema
 async function shutdown(signal: string) {
   logger.info(`Señal ${signal} recibida. Cerrando servidor...`);
+  const forceExit = setTimeout(() => {
+    logger.error('Shutdown forzado por timeout (10s)');
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref(); // No bloquea el event loop ni interfiere con el exit normal
+
   server?.close(async () => {
+    clearTimeout(forceExit);
     await pool.end();
     logger.info('Servidor cerrado correctamente.');
     process.exit(0);
   });
-  // Si no cierra en 10s, forzar salida
-  setTimeout(() => process.exit(1), 10_000);
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));

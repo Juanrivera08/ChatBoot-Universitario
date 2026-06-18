@@ -63,6 +63,10 @@ export async function getSubmissions(req: Request, res: Response, next: NextFunc
 export async function updateSubmission(req: Request, res: Response, next: NextFunction) {
   try {
     const { status, notes } = req.body;
+    const ALLOWED_STATUSES = ['pendiente', 'en_proceso', 'completado', 'rechazado'];
+    if (!ALLOWED_STATUSES.includes(status)) {
+      return next(new AppError(`Estado inválido. Valores permitidos: ${ALLOWED_STATUSES.join(', ')}`, 400));
+    }
     await flowService.updateSubmissionStatus(req.params.id, status, notes);
     res.json({ message: 'Solicitud actualizada' });
   } catch (e) { next(e); }

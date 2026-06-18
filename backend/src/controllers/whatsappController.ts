@@ -1,14 +1,11 @@
 import { Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import crypto from 'crypto';
+import { genAI } from '../config/genai';
 import { whatsappService } from '../services/whatsappService';
 import { aiService } from '../services/aiService';
 import { flowService } from '../services/flowService';
 import { conversationService } from '../services/conversationService';
 import { logger } from '../utils/logger';
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 // Usa el número de teléfono como sessionId para WhatsApp
 function getSessionId(phone: string): string {
@@ -118,6 +115,25 @@ async function processIncomingText(
   await whatsappService.sendText(from, aiResponse.answer);
 }
 
+// ── FIRMA HMAC-SHA256 (Meta envía X-Hub-Signature-256 en cada POST) ──────────
+function isValidSignature(req: Request): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    logger.warn('WHATSAPP_APP_SECRET no configurado — verificación de firma desactivada');
+    return false;
+  }
+  const sig = req.headers['x-hub-signature-256'] as string | undefined;
+  if (!sig) return false;
+  const expected =
+    'sha256=' +
+    crypto.createHmac('sha256', appSecret).update(JSON.stringify(req.body)).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 // ── WEBHOOK VERIFICATION (GET) ────────────────────────────────────
 export function verifyWebhook(req: Request, res: Response): void {
   const mode = req.query['hub.mode'];
@@ -134,6 +150,11 @@ export function verifyWebhook(req: Request, res: Response): void {
 
 // ── RECIBIR MENSAJES (POST) ───────────────────────────────────────
 export async function receiveMessage(req: Request, res: Response): Promise<void> {
+  if (!isValidSignature(req)) {
+    logger.warn('WhatsApp webhook: firma inválida rechazada');
+    res.status(403).send('Firma inválida');
+    return;
+  }
   // Responder 200 inmediatamente — Meta requiere respuesta rápida o reintenta
   res.status(200).send('OK');
 

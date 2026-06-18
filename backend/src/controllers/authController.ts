@@ -50,7 +50,11 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 
 export async function createAdmin(req: Request, res: Response, next: NextFunction) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(new AppError(errors.array()[0].msg, 400));
+
     const { email, password, fullName } = req.body;
+    if (!fullName?.trim()) return next(new AppError('El nombre completo es requerido', 400));
     const hashedPassword = await bcrypt.hash(password, 12);
     const { rows } = await query(
       `INSERT INTO users (email, password, full_name, role)

@@ -39,10 +39,13 @@ class ConversationService {
 
     if (rows[0]) return rows[0];
 
-    // Crear nueva conversación
+    // Crear nueva conversación (ON CONFLICT por si dos requests llegan simultáneas)
     const { rows: newRows } = await query<Conversation>(
       `INSERT INTO conversations (session_id, user_agent, ip_address)
-       VALUES ($1, $2, $3) RETURNING *`,
+       VALUES ($1, $2, $3)
+       ON CONFLICT (session_id) DO UPDATE
+         SET last_message_at = conversations.last_message_at
+       RETURNING *`,
       [sessionId, userAgent || null, ipAddress || null]
     );
 

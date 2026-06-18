@@ -47,14 +47,20 @@ export default function ChatWindow() {
   const isStreamingActive = useRef(false);
   const displayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const initialized = useRef(false);
+
   useEffect(() => {
-    if (!sessionId) setSessionId(uuidv4());
-    if (messages.length === 0) addMessage({ role: 'assistant', content: WELCOME_MESSAGE });
+    // Strict Mode monta el componente dos veces en dev — el flag evita doble bienvenida
+    if (!initialized.current) {
+      initialized.current = true;
+      if (!sessionId) setSessionId(uuidv4());
+      if (messages.length === 0) addMessage({ role: 'assistant', content: WELCOME_MESSAGE });
+    }
     return () => {
       abortRef.current?.abort();
       if (displayTimer.current) clearTimeout(displayTimer.current);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Procesa la cola de tokens uno por uno con delay para efecto word-by-word
   const startDisplayTimer = () => {

@@ -38,8 +38,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_started_at ON conversations(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON conversations(last_message_at DESC);
 
 -- ============================================================
 -- TABLA: messages (mensajes individuales del chat)

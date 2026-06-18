@@ -1,13 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ragService } from './ragService';
+import { genAI } from '../config/genai';
 import { query } from '../config/database';
 import { logger } from '../utils/logger';
-
-if (!process.env.GOOGLE_API_KEY) {
-  throw new Error('GOOGLE_API_KEY no está definida. Verifica tu archivo .env');
-}
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -62,27 +56,36 @@ class AIService {
 
     if (contextChunks.length > 0) {
       contextText = '\n\n=== INFORMACIÓN INSTITUCIONAL RELEVANTE ===\n';
-      const seenDocuments = new Set<string>();
+
+      // Recopilar IDs únicos y distancia mínima por documento en un solo recorrido
+      const docDistances = new Map<string, number>();
       for (const chunk of contextChunks) {
         contextText += `\n--- ${chunk.metadata.title || 'Documento institucional'} ---\n`;
         contextText += chunk.content + '\n';
         const docId = chunk.metadata.document_id as string;
-        if (docId && !seenDocuments.has(docId)) {
-          seenDocuments.add(docId);
-          const { rows } = await query<{ title: string; category: string }>(
-            'SELECT title, category FROM documents WHERE id = $1',
-            [docId]
-          );
-          if (rows[0]) {
-            sources.push({
-              title: rows[0].title,
-              category: rows[0].category,
-              relevance: Math.round((1 - chunk.distance) * 100),
-            });
-          }
+        if (docId) {
+          const prev = docDistances.get(docId) ?? chunk.distance;
+          docDistances.set(docId, Math.min(prev, chunk.distance));
         }
       }
       contextText += '\n=== FIN DE INFORMACIÓN INSTITUCIONAL ===\n';
+
+      // Una sola query para todos los documentos en lugar de N queries
+      if (docDistances.size > 0) {
+        const docIds = [...docDistances.keys()];
+        const { rows } = await query<{ id: string; title: string; category: string }>(
+          'SELECT id, title, category FROM documents WHERE id = ANY($1::uuid[])',
+          [docIds]
+        );
+        for (const row of rows) {
+          const distance = docDistances.get(row.id) ?? 1;
+          sources.push({
+            title: row.title,
+            category: row.category,
+            relevance: Math.round((1 - distance) * 100),
+          });
+        }
+      }
     }
 
     const systemInstruction = `${config.system_prompt || 'Eres el Asistente de Servicios Digitales de la Institución Universitaria Salazar y Herrera (USH). Tu función es ayudar a estudiantes, docentes y personas interesadas con información académica y administrativa precisa. Responde siempre en español, de forma amable, clara y profesional.'}

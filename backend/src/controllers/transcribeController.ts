@@ -1,10 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { genAI } from '../config/genai';
 import { AppError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 export async function transcribeAudio(req: Request, res: Response, next: NextFunction) {
   const filePath = req.file?.path;

@@ -1,10 +1,10 @@
 import { ChromaClient, Collection } from 'chromadb';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 import { query } from '../config/database';
 import { COLLECTION_NAME } from '../config/chroma';
+import { genAI } from '../config/genai';
 
 const CHUNK_SIZE = parseInt(process.env.CHUNK_SIZE || '500');
 const CHUNK_OVERLAP = parseInt(process.env.CHUNK_OVERLAP || '50');
@@ -13,13 +13,11 @@ const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
 
 class RAGService {
   private chromaClient: ChromaClient;
-  private genAI: GoogleGenerativeAI;
   private collection: Collection | null = null;
   private textSplitter: RecursiveCharacterTextSplitter;
 
   constructor() {
     this.chromaClient = new ChromaClient({ path: CHROMA_URL });
-    this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
     this.textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: CHUNK_SIZE,
       chunkOverlap: CHUNK_OVERLAP,
@@ -43,7 +41,7 @@ class RAGService {
   // Genera embedding con reintentos automáticos ante rate limit (429)
   private async embedText(text: string, attempt = 1): Promise<number[]> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
       const result = await model.embedContent(text);
       return result.embedding.values;
     } catch (error: any) {

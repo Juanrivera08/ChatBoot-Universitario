@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { query } from '../config/database';
 import { logger } from '../utils/logger';
 
@@ -44,11 +45,11 @@ export interface FlowResponse {
   submissionData?: Record<string, any>;
 }
 
-// Genera número de radicado único: USH-YYYYMMDD-XXXX
+// Genera número de radicado único: USH-YYYYMMDD-XXXXX (5 dígitos criptográficos)
 function generateRadicado(): string {
   const date = new Date();
   const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  const random = Math.floor(1000 + Math.random() * 9000);
+  const random = crypto.randomInt(10000, 99999);
   return `USH-${dateStr}-${random}`;
 }
 
@@ -113,15 +114,26 @@ function normalizeInput(value: string, step: FlowStep): string {
 }
 
 class FlowService {
+  private flowsCache: { data: Flow[]; expiresAt: number } | null = null;
+  private readonly FLOWS_CACHE_TTL_MS = 60_000;
+
+  private invalidateFlowsCache(): void {
+    this.flowsCache = null;
+  }
+
+  private async getActiveFlows(): Promise<Flow[]> {
+    const now = Date.now();
+    if (this.flowsCache && now < this.flowsCache.expiresAt) return this.flowsCache.data;
+    const { rows } = await query<Flow>('SELECT * FROM flows WHERE is_active = true');
+    this.flowsCache = { data: rows, expiresAt: now + this.FLOWS_CACHE_TTL_MS };
+    return rows;
+  }
+
   // Detecta si el mensaje activa algún flujo configurado
   async detectFlow(message: string): Promise<Flow | null> {
-    const { rows } = await query<Flow>(
-      `SELECT * FROM flows WHERE is_active = true`,
-    );
-
+    const flows = await this.getActiveFlows();
     const normalized = message.toLowerCase();
-
-    for (const flow of rows) {
+    for (const flow of flows) {
       for (const keyword of flow.trigger_keywords) {
         if (normalized.includes(keyword.toLowerCase())) {
           return flow;
@@ -332,6 +344,7 @@ class FlowService {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [data.name, data.description, data.triggerKeywords, data.completionMessage, data.notificationEmail || null]
     );
+    this.invalidateFlowsCache();
     return rows[0];
   }
 
@@ -348,10 +361,12 @@ class FlowService {
 
   async deleteFlow(flowId: string) {
     await query('DELETE FROM flows WHERE id = $1', [flowId]);
+    this.invalidateFlowsCache();
   }
 
   async toggleFlow(flowId: string, isActive: boolean) {
     await query('UPDATE flows SET is_active = $1 WHERE id = $2', [isActive, flowId]);
+    this.invalidateFlowsCache();
   }
 
   async getSubmissions(page = 1, limit = 20, status?: string) {
@@ -365,7 +380,10 @@ class FlowService {
     if (status) { sql += ` WHERE fs.status = $3`; params.push(status); }
     sql += ` ORDER BY fs.created_at DESC LIMIT $1 OFFSET $2`;
     const { rows } = await query(sql, params);
-    const { rows: countRows } = await query('SELECT COUNT(*) as total FROM flow_submissions');
+    const countSql = status
+      ? 'SELECT COUNT(*) as total FROM flow_submissions WHERE status = $1'
+      : 'SELECT COUNT(*) as total FROM flow_submissions';
+    const { rows: countRows } = await query(countSql, status ? [status] : []);
     return { submissions: rows, total: parseInt(countRows[0].total) };
   }
 
