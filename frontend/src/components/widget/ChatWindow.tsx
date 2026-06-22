@@ -42,6 +42,7 @@ export default function ChatWindow() {
 
   const abortRef = useRef<AbortController | null>(null);
   const humanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSeenAtRef = useRef<string | null>(null);
 
   // Cola de tokens pendientes de mostrar y bandera de stream activo
   const displayQueue = useRef<string[]>([]);
@@ -50,17 +51,55 @@ export default function ChatWindow() {
 
   const initialized = useRef(false);
 
+  // Polling universal: corre siempre mientras el widget esté abierto.
+  // Si humanMode: false → resetea lastSeenAt y espera (no para).
+  // Si humanMode: true con mensajes nuevos → los muestra.
+  // Solo para cuando el componente se desmonta.
+  const startPolling = (sid: string) => {
+    if (humanPollRef.current) return;
+    humanPollRef.current = setInterval(async () => {
+      try {
+        const { data } = await chatApi.pollPendingReply(sid, lastSeenAtRef.current ?? undefined);
+        if (!data.humanMode) {
+          // Admin devolvió control a IA — limpiar estado y seguir esperando
+          setTyping(false);
+          lastSeenAtRef.current = null;
+          return;
+        }
+        // Mostrar tres puntos si el admin está escribiendo
+        setTyping(data.adminTyping || false);
+        if (data.replies && data.replies.length > 0) {
+          setTyping(false);
+          for (const reply of data.replies) {
+            addMessage({ role: 'assistant', content: reply.content });
+          }
+          lastSeenAtRef.current = data.replies[data.replies.length - 1].created_at;
+        }
+      } catch { /* error de red — seguir intentando */ }
+    }, 1500);
+  };
+
   useEffect(() => {
-    // Strict Mode monta el componente dos veces en dev — el flag evita doble bienvenida
+    // Strict Mode monta el componente dos veces en dev.
+    // El flag solo protege la inicialización one-shot (mensaje de bienvenida + sessionId).
+    // startPolling va FUERA del flag para que funcione en ambos montajes.
     if (!initialized.current) {
       initialized.current = true;
       if (!sessionId) setSessionId(uuidv4());
       if (messages.length === 0) addMessage({ role: 'assistant', content: WELCOME_MESSAGE });
     }
+
+    // Arrancar polling siempre — el guard interno evita duplicados
+    const sid = sessionId || (useChatStore.getState().sessionId ?? uuidv4());
+    startPolling(sid);
+
     return () => {
       abortRef.current?.abort();
       if (displayTimer.current) clearTimeout(displayTimer.current);
-      if (humanPollRef.current) clearInterval(humanPollRef.current);
+      if (humanPollRef.current) {
+        clearInterval(humanPollRef.current);
+        humanPollRef.current = null;
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,12 +137,6 @@ export default function ChatWindow() {
 
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || isSending) return;
-
-    // Cancelar polling humano activo antes de enviar nuevo mensaje
-    if (humanPollRef.current) {
-      clearInterval(humanPollRef.current);
-      humanPollRef.current = null;
-    }
 
     setLastFailedMessage(null);
     setIsSending(true);
@@ -143,24 +176,10 @@ export default function ChatWindow() {
 
       isStreamingActive.current = false;
 
-      // Modo humano: el admin responderá manualmente; hacer polling cada 3s
+      // Modo humano: el admin responderá manualmente; arrancar polling continuo
       if (donePayload.humanPending) {
         // isTyping permanece true para mostrar el indicador de escritura
-        humanPollRef.current = setInterval(async () => {
-          try {
-            const { data } = await chatApi.pollPendingReply(currentSessionId);
-            if (!data.humanMode || (!data.pending && data.reply !== undefined)) {
-              clearInterval(humanPollRef.current!);
-              humanPollRef.current = null;
-              setTyping(false);
-              if (data.reply) {
-                addMessage({ role: 'assistant', content: data.reply });
-              }
-            }
-          } catch {
-            // Error de red — seguir intentando
-          }
-        }, 3000);
+        startPolling(currentSessionId);
         return;
       }
 

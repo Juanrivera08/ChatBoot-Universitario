@@ -6,23 +6,23 @@ const baseOptions = {
   legacyHeaders: false,
 };
 
-// Global: 200 peticiones por 15 minutos por IP
+// Global: protege rutas públicas — admin usa JWT propio, no necesita este límite
 export const globalRateLimit = rateLimit({
   ...baseOptions,
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1000,
   message: { error: 'Demasiadas peticiones, intenta más tarde.' },
 });
 
-// Chat: 30 mensajes por minuto por IP
+// Chat: 60 mensajes por minuto por IP (incluye el polling /chat/poll cada 3s)
 export const chatRateLimit = rateLimit({
   ...baseOptions,
   windowMs: 60 * 1000,
-  max: 30,
+  max: 60,
   message: { error: 'Estás enviando mensajes muy rápido, espera un momento.' },
 });
 
-// Carga de documentos: 50 subidas por hora (anteriormente 10, muy restrictivo para admins)
+// Carga de documentos: 50 subidas por hora
 export const uploadRateLimit = rateLimit({
   ...baseOptions,
   windowMs: 60 * 60 * 1000,
@@ -30,10 +30,10 @@ export const uploadRateLimit = rateLimit({
   message: { error: 'Límite de subida de documentos alcanzado.' },
 });
 
-// Autenticación: 5 intentos por 15 minutos
+// Autenticación: 20 intentos por 15 minutos
 export const authRateLimit = rateLimit({
   ...baseOptions,
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,
   message: { error: 'Demasiados intentos de inicio de sesión.' },
 });

@@ -73,9 +73,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting global
-app.use(globalRateLimit);
-
 // Parseo de JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -98,10 +95,10 @@ app.use('/widget', express.static(widgetDir, {
   immutable: true,
 }));
 
-// Rutas
+// Rutas — globalRateLimit solo en rutas públicas; admin/flows usan autenticación JWT
 app.use('/api/auth', authRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/documents', documentRoutes);
+app.use('/api/chat', globalRateLimit, chatRoutes);
+app.use('/api/documents', globalRateLimit, documentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/flows', flowRoutes);
 app.use('/api/whatsapp', whatsappRoutes);

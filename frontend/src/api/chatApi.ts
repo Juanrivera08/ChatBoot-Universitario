@@ -63,9 +63,15 @@ export const chatApi = {
   deleteConversation: (sessionId: string) =>
     api.delete(`/chat/conversation/${sessionId}`),
 
-  pollPendingReply: (sessionId: string) =>
-    api.get<{ pending: boolean; humanMode: boolean; reply?: string; messageId?: string }>(
-      `/chat/poll/${sessionId}`
+  pollPendingReply: (sessionId: string, since?: string) =>
+    api.get<{
+      pending: boolean;
+      humanMode: boolean;
+      adminTyping: boolean;
+      replies: Array<{ id: string; content: string; created_at: string }>;
+    }>(
+      `/chat/poll/${sessionId}`,
+      since ? { params: { since } } : undefined
     ),
 
   // Streaming via fetch nativo (axios no soporta ReadableStream)
@@ -151,6 +157,8 @@ export const adminApi = {
     api.put(`/admin/conversations/${id}/takeover`, { enabled }),
   adminReply: (id: string, content: string) =>
     api.post(`/admin/conversations/${id}/reply`, { content }),
+  adminTyping: (id: string, typing: boolean) =>
+    api.post(`/admin/conversations/${id}/typing`, { typing }),
 };
 
 export const documentApi = {

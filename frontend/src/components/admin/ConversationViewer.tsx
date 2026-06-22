@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare, Star, ChevronDown, ChevronUp, UserCheck, Bot, Send } from 'lucide-react';
 import { adminApi } from '../../api/chatApi';
 import type { Conversation } from '../../types';
@@ -35,6 +35,7 @@ export default function ConversationViewer() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const liveRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchConversations = () =>
     adminApi.getConversations().then(({ data }) => setConversations(data.conversations));
@@ -97,16 +98,27 @@ export default function ConversationViewer() {
     }
   };
 
+  // Señal de "escribiendo" con auto-stop a los 4s si deja de tipear
+  const handleTypingSignal = useCallback((convId: string) => {
+    adminApi.adminTyping(convId, true).catch(() => {});
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      adminApi.adminTyping(convId, false).catch(() => {});
+    }, 4000);
+  }, []);
+
   const handleSendReply = async (convId: string) => {
     const text = replyText[convId]?.trim();
     if (!text || sendingReply === convId) return;
+    // Apagar indicador de escritura al enviar
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    adminApi.adminTyping(convId, false).catch(() => {});
     setSendingReply(convId);
     try {
       await adminApi.adminReply(convId, text);
       setReplyText((prev) => ({ ...prev, [convId]: '' }));
       const { data } = await adminApi.getConversationMessages(convId);
       setMessages((prev) => ({ ...prev, [convId]: data.messages }));
-      // Scroll al final
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } finally {
       setSendingReply(null);
@@ -256,9 +268,10 @@ export default function ConversationViewer() {
                       <div className="flex gap-2">
                         <textarea
                           value={replyText[conv.id] ?? ''}
-                          onChange={(e) =>
-                            setReplyText((prev) => ({ ...prev, [conv.id]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            setReplyText((prev) => ({ ...prev, [conv.id]: e.target.value }));
+                            handleTypingSignal(conv.id);
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();

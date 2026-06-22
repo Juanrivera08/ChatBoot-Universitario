@@ -26,6 +26,9 @@ export interface Message {
   created_at: Date;
 }
 
+// Mapa en memoria: conversationId → timeout de auto-expiración del indicador de escritura
+const adminTypingMap = new Map<string, ReturnType<typeof setTimeout>>();
+
 class ConversationService {
   async getOrCreateConversation(
     sessionId: string,
@@ -161,39 +164,48 @@ class ConversationService {
     return rows;
   }
 
-  async getPendingReply(sessionId: string): Promise<{
+  setAdminTyping(conversationId: string, isTyping: boolean): void {
+    const existing = adminTypingMap.get(conversationId);
+    if (existing) clearTimeout(existing);
+    if (isTyping) {
+      // Auto-expirar a los 6s si no llega nueva señal (cubre pérdida de conexión)
+      adminTypingMap.set(conversationId, setTimeout(() => {
+        adminTypingMap.delete(conversationId);
+      }, 6000));
+    } else {
+      adminTypingMap.delete(conversationId);
+    }
+  }
+
+  async getPendingReply(sessionId: string, since?: Date): Promise<{
     pending: boolean;
     humanMode: boolean;
-    reply?: string;
-    messageId?: string;
+    adminTyping: boolean;
+    replies: Array<{ id: string; content: string; created_at: Date }>;
   }> {
     const { rows: convRows } = await query<Conversation>(
-      'SELECT id, human_mode FROM conversations WHERE session_id = $1',
+      'SELECT id, human_mode, human_mode_at FROM conversations WHERE session_id = $1',
       [sessionId]
     );
-    if (!convRows[0]) return { pending: false, humanMode: false };
+    if (!convRows[0]) return { pending: false, humanMode: false, adminTyping: false, replies: [] };
 
     const conv = convRows[0];
-    if (!conv.human_mode) return { pending: false, humanMode: false };
+    if (!conv.human_mode) return { pending: false, humanMode: false, adminTyping: false, replies: [] };
 
-    const { rows: userMsgRows } = await query<{ id: string; created_at: Date }>(
-      `SELECT id, created_at FROM messages
-       WHERE conversation_id = $1 AND role = 'user'
-       ORDER BY created_at DESC LIMIT 1`,
-      [conv.id]
-    );
+    // +1ms para evitar re-fetch por precisión de microsegundos del created_at de PostgreSQL
+    const sinceDate = since
+      ? new Date(since.getTime() + 1)
+      : conv.human_mode_at || new Date(0);
 
-    if (!userMsgRows[0]) return { pending: true, humanMode: true };
-
-    const { rows: replyRows } = await query<{ id: string; content: string }>(
-      `SELECT id, content FROM messages
+    const { rows: replyRows } = await query<{ id: string; content: string; created_at: Date }>(
+      `SELECT id, content, created_at FROM messages
        WHERE conversation_id = $1 AND role = 'assistant' AND created_at > $2
-       ORDER BY created_at ASC LIMIT 1`,
-      [conv.id, userMsgRows[0].created_at]
+       ORDER BY created_at ASC`,
+      [conv.id, sinceDate]
     );
 
-    if (!replyRows[0]) return { pending: true, humanMode: true };
-    return { pending: false, humanMode: true, reply: replyRows[0].content, messageId: replyRows[0].id };
+    const adminTyping = adminTypingMap.has(conv.id);
+    return { pending: replyRows.length === 0, humanMode: true, adminTyping, replies: replyRows };
   }
 }
 

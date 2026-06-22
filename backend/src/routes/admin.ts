@@ -12,6 +12,7 @@ import {
   getLiveConversations,
   toggleHumanMode,
   adminReply,
+  adminTyping,
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -33,5 +34,6 @@ router.put('/ai-config', updateAIConfig);
 router.get('/live', getLiveConversations);
 router.put('/conversations/:id/takeover', toggleHumanMode);
 router.post('/conversations/:id/reply', adminReply);
+router.post('/conversations/:id/typing', adminTyping);
 
 export default router;

@@ -125,8 +125,19 @@ export async function adminReply(req: AuthRequest, res: Response, next: NextFunc
     const { id } = req.params;
     const { content } = req.body;
     if (!content?.trim()) return next(new AppError('El contenido no puede estar vacío', 400));
+    // Apagar indicador de escritura al enviar el mensaje
+    conversationService.setAdminTyping(id, false);
     const message = await conversationService.saveMessage(id, 'assistant', content.trim());
     res.json({ message });
+  } catch (error) { next(error); }
+}
+
+export async function adminTyping(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const { typing } = req.body;
+    conversationService.setAdminTyping(id, !!typing);
+    res.json({ ok: true });
   } catch (error) { next(error); }
 }
 

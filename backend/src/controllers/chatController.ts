@@ -176,7 +176,8 @@ export async function submitFeedback(req: Request, res: Response, next: NextFunc
 
 export async function pollPendingReply(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await conversationService.getPendingReply(req.params.sessionId);
+    const since = req.query.since ? new Date(req.query.since as string) : undefined;
+    const result = await conversationService.getPendingReply(req.params.sessionId, since);
     res.json(result);
   } catch (error) { next(error); }
 }
