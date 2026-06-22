@@ -54,6 +54,7 @@ export default function Dashboard() {
         setStats(statsRes.data.stats);
         setCharts(chartsRes.data);
       })
+      .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
 

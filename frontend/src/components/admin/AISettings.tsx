@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Save, Info } from 'lucide-react';
+import { Save, Info } from 'lucide-react';
 import { adminApi } from '../../api/chatApi';
 
 interface ConfigItem {
@@ -28,7 +28,7 @@ export default function AISettings() {
       const vals: Record<string, string> = {};
       data.config.forEach((c: ConfigItem) => { vals[c.key] = c.value; });
       setValues(vals);
-    });
+    }).catch(() => {});
   }, []);
 
   const handleSave = async (key: string) => {

@@ -98,6 +98,14 @@ export const useChatStore = create<ChatState & ChatActions>()(
         hasEverOpened: state.hasEverOpened,
         messages: state.messages.slice(-50),
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.messages) {
+          state.messages = state.messages.map((m) => ({
+            ...m,
+            createdAt: new Date(m.createdAt as unknown as string),
+          }));
+        }
+      },
     }
   )
 );

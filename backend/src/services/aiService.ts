@@ -129,14 +129,19 @@ INSTRUCCIONES IMPORTANTES:
     conversationHistory: ChatMessage[],
     sessionId: string
   ): Promise<AIResponse> {
-    const ctx = await this.buildRequestContext(userMessage, conversationHistory);
-    const chat = ctx.model.startChat({ history: ctx.geminiHistory });
-    const result = await chat.sendMessage(userMessage);
-    const answer = result.response.text() || 'Lo siento, no pude generar una respuesta.';
-    const tokensUsed = result.response.usageMetadata?.totalTokenCount || 0;
-    const processingTime = Date.now() - ctx.start;
-    logger.info(`IA respondió en ${processingTime}ms | ${tokensUsed} tokens | sesión ${sessionId}`);
-    return { answer, sources: ctx.sources, tokensUsed, processingTime, model: ctx.modelName };
+    try {
+      const ctx = await this.buildRequestContext(userMessage, conversationHistory);
+      const chat = ctx.model.startChat({ history: ctx.geminiHistory });
+      const result = await chat.sendMessage(userMessage);
+      const answer = result.response.text() || 'Lo siento, no pude generar una respuesta.';
+      const tokensUsed = result.response.usageMetadata?.totalTokenCount || 0;
+      const processingTime = Date.now() - ctx.start;
+      logger.info(`IA respondió en ${processingTime}ms | ${tokensUsed} tokens | sesión ${sessionId}`);
+      return { answer, sources: ctx.sources, tokensUsed, processingTime, model: ctx.modelName };
+    } catch (error: any) {
+      logger.error(`Error en generateResponse (sesión ${sessionId}):`, error);
+      throw error;
+    }
   }
 
   // Modo streaming: llama onChunk por cada fragmento y devuelve metadata al terminar
@@ -183,12 +188,16 @@ INSTRUCCIONES IMPORTANTES:
   }
 
   async generateConversationTitle(firstMessage: string): Promise<string> {
-    const config = await this.getSystemConfig();
-    const model = genAI.getGenerativeModel({ model: config.model || 'gemini-2.5-flash' });
-    const result = await model.generateContent(
-      `Genera un título corto (máximo 6 palabras) que resuma la siguiente pregunta de un estudiante universitario. Solo devuelve el título, sin comillas ni puntuación extra.\n\nPregunta: ${firstMessage}`
-    );
-    return result.response.text()?.trim() || 'Nueva conversación';
+    try {
+      const config = await this.getSystemConfig();
+      const model = genAI.getGenerativeModel({ model: config.model || 'gemini-2.5-flash' });
+      const result = await model.generateContent(
+        `Genera un título corto (máximo 6 palabras) que resuma la siguiente pregunta de un estudiante universitario. Solo devuelve el título, sin comillas ni puntuación extra.\n\nPregunta: ${firstMessage}`
+      );
+      return result.response.text()?.trim() || 'Nueva conversación';
+    } catch {
+      return 'Nueva conversación';
+    }
   }
 }
 

@@ -6,13 +6,21 @@ import type { FAQ } from '../../types';
 
 export default function FAQManager() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [form, setForm] = useState({ question: '', answer: '', category: 'general' });
   const [isSaving, setIsSaving] = useState(false);
 
-  const load = () =>
-    adminApi.getFAQs().then(({ data }) => setFaqs(data.faqs));
+  const load = async () => {
+    try {
+      const { data } = await adminApi.getFAQs();
+      setFaqs(data.faqs);
+    } catch {
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -31,8 +39,11 @@ export default function FAQManager() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta FAQ?')) return;
-    await adminApi.deleteFAQ(id);
-    setFaqs((prev) => prev.filter((f) => f.id !== id));
+    try {
+      await adminApi.deleteFAQ(id);
+      setFaqs((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+    }
   };
 
   return (
@@ -114,7 +125,11 @@ export default function FAQManager() {
         )}
       </AnimatePresence>
 
-      {faqs.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-ush-500 border-t-transparent" />
+        </div>
+      ) : faqs.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <HelpCircle className="h-12 w-12 text-gray-700" />
           <p className="text-gray-500">No hay FAQs creadas aún.</p>

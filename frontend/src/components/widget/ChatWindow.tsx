@@ -41,6 +41,7 @@ export default function ChatWindow() {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const humanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cola de tokens pendientes de mostrar y bandera de stream activo
   const displayQueue = useRef<string[]>([]);
@@ -59,6 +60,7 @@ export default function ChatWindow() {
     return () => {
       abortRef.current?.abort();
       if (displayTimer.current) clearTimeout(displayTimer.current);
+      if (humanPollRef.current) clearInterval(humanPollRef.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -97,6 +99,12 @@ export default function ChatWindow() {
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || isSending) return;
 
+    // Cancelar polling humano activo antes de enviar nuevo mensaje
+    if (humanPollRef.current) {
+      clearInterval(humanPollRef.current);
+      humanPollRef.current = null;
+    }
+
     setLastFailedMessage(null);
     setIsSending(true);
     displayQueue.current = [];
@@ -134,6 +142,27 @@ export default function ChatWindow() {
       );
 
       isStreamingActive.current = false;
+
+      // Modo humano: el admin responderá manualmente; hacer polling cada 3s
+      if (donePayload.humanPending) {
+        // isTyping permanece true para mostrar el indicador de escritura
+        humanPollRef.current = setInterval(async () => {
+          try {
+            const { data } = await chatApi.pollPendingReply(currentSessionId);
+            if (!data.humanMode || (!data.pending && data.reply !== undefined)) {
+              clearInterval(humanPollRef.current!);
+              humanPollRef.current = null;
+              setTyping(false);
+              if (data.reply) {
+                addMessage({ role: 'assistant', content: data.reply });
+              }
+            }
+          } catch {
+            // Error de red — seguir intentando
+          }
+        }, 3000);
+        return;
+      }
 
       // Respuesta de flujo guiado — no hubo stream, agregar mensaje directo
       if (donePayload.flowState) {
@@ -176,6 +205,7 @@ export default function ChatWindow() {
     } catch (err: any) {
       isStreamingActive.current = false;
       if (displayTimer.current) { clearTimeout(displayTimer.current); displayTimer.current = null; }
+      if (humanPollRef.current) { clearInterval(humanPollRef.current); humanPollRef.current = null; }
       displayQueue.current = [];
 
       setTyping(false);

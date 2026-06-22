@@ -1,7 +1,9 @@
 import winston from 'winston';
 import fs from 'fs';
+import path from 'path';
 
-if (!fs.existsSync('logs')) fs.mkdirSync('logs', { recursive: true });
+const LOGS_DIR = path.join(__dirname, '../../logs');
+if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
 
@@ -21,13 +23,13 @@ export const logger = winston.createLogger({
       format: combine(colorize(), timestamp({ format: 'HH:mm:ss' }), logFormat),
     }),
     new winston.transports.File({
-      filename: 'logs/error.log',
+      filename: path.join(LOGS_DIR, 'error.log'),
       level: 'error',
       maxsize: 5242880,
       maxFiles: 5,
     }),
     new winston.transports.File({
-      filename: 'logs/combined.log',
+      filename: path.join(LOGS_DIR, 'combined.log'),
       maxsize: 5242880,
       maxFiles: 5,
     }),

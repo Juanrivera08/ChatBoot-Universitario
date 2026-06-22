@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Trash2, RefreshCw, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Upload, Trash2, RefreshCw, FileText, CheckCircle, Clock } from 'lucide-react';
 import { documentApi } from '../../api/chatApi';
 import type { Document } from '../../types';
 
@@ -34,16 +34,18 @@ export default function DocumentManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     title: '', category: 'reglamento', description: '', file: null as File | null,
   });
 
-  const load = () => {
-    documentApi.getAll().then(({ data }) => {
+  const load = async () => {
+    try {
+      const { data } = await documentApi.getAll();
       setDocuments(data.documents);
+    } catch {
+    } finally {
       setIsLoading(false);
-    });
+    }
   };
 
   useEffect(() => {
@@ -75,15 +77,21 @@ export default function DocumentManager() {
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`¿Eliminar "${title}"? Esta acción no se puede deshacer.`)) return;
-    await documentApi.delete(id);
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
+    try {
+      await documentApi.delete(id);
+      setDocuments((prev) => prev.filter((d) => d.id !== id));
+    } catch {
+    }
   };
 
   const handleReindex = async (id: string) => {
-    await documentApi.reindex(id);
-    setDocuments((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, is_indexed: false } : d))
-    );
+    try {
+      await documentApi.reindex(id);
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, is_indexed: false } : d))
+      );
+    } catch {
+    }
   };
 
   const formatSize = (bytes: number) => {
@@ -156,7 +164,6 @@ export default function DocumentManager() {
               <div className="md:col-span-2">
                 <label className="mb-1 block text-xs text-gray-400">Archivo PDF *</label>
                 <input
-                  ref={fileRef}
                   type="file"
                   accept=".pdf"
                   onChange={(e) => setForm({ ...form, file: e.target.files?.[0] || null })}

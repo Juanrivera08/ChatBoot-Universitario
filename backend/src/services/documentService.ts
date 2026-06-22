@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import pdfParse from 'pdf-parse';
-import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database';
 import { ragService } from './ragService';
 import { logger } from '../utils/logger';
@@ -140,10 +139,18 @@ class DocumentService {
 
   async reindex(id: string): Promise<void> {
     const doc = await this.getById(id);
-    const pdfBuffer = fs.readFileSync(doc.file_path);
-    const pdfData = await pdfParse(pdfBuffer);
+    if (!fs.existsSync(doc.file_path)) {
+      throw new AppError('El archivo físico del documento no existe en el servidor.', 404);
+    }
+    let pdfData;
+    try {
+      const pdfBuffer = fs.readFileSync(doc.file_path);
+      pdfData = await pdfParse(pdfBuffer);
+    } catch {
+      throw new AppError('No se pudo leer el PDF para reindexar.', 422);
+    }
     await ragService.deleteDocument(id);
-    await this.indexDocumentAsync(id, pdfData.text, {
+    this.indexDocumentAsync(id, pdfData.text, {
       title: doc.title,
       category: doc.category,
       filename: doc.filename,

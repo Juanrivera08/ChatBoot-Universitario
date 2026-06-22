@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,6 +8,8 @@ export interface Conversation {
   ip_address: string | null;
   is_resolved: boolean;
   feedback: number | null;
+  human_mode: boolean;
+  human_mode_at: Date | null;
   started_at: Date;
   last_message_at: Date;
 }
@@ -99,13 +100,11 @@ class ConversationService {
   }
 
   async deleteConversation(sessionId: string): Promise<void> {
-    const { rows } = await query<{ id: string }>(
-      'SELECT id FROM conversations WHERE session_id = $1',
+    const result = await query(
+      'DELETE FROM conversations WHERE session_id = $1',
       [sessionId]
     );
-    if (!rows[0]) throw new AppError('Conversación no encontrada', 404);
-    await query('DELETE FROM messages WHERE conversation_id = $1', [rows[0].id]);
-    await query('DELETE FROM conversations WHERE id = $1', [rows[0].id]);
+    if ((result.rowCount ?? 0) === 0) throw new AppError('Conversación no encontrada', 404);
   }
 
   async submitFeedback(sessionId: string, rating: number): Promise<void> {
@@ -114,7 +113,7 @@ class ConversationService {
       'UPDATE conversations SET feedback = $1 WHERE session_id = $2',
       [rating, sessionId]
     );
-    if (result.rowCount === 0) throw new AppError('Conversación no encontrada', 404);
+    if ((result.rowCount ?? 0) === 0) throw new AppError('Conversación no encontrada', 404);
   }
 
   async getAll(page = 1, limit = 20): Promise<{ conversations: any[]; total: number }> {
@@ -140,6 +139,61 @@ class ConversationService {
       [conversationId]
     );
     return rows;
+  }
+
+  async setHumanMode(conversationId: string, enabled: boolean): Promise<void> {
+    const result = await query(
+      'UPDATE conversations SET human_mode = $1, human_mode_at = $2 WHERE id = $3',
+      [enabled, enabled ? new Date() : null, conversationId]
+    );
+    if (result.rowCount === 0) throw new AppError('Conversación no encontrada', 404);
+  }
+
+  async getHumanModeConversations(): Promise<any[]> {
+    const { rows } = await query(`
+      SELECT c.*, COUNT(m.id) as message_count
+      FROM conversations c
+      LEFT JOIN messages m ON c.id = m.conversation_id
+      WHERE c.human_mode = true
+      GROUP BY c.id
+      ORDER BY c.last_message_at DESC
+    `);
+    return rows;
+  }
+
+  async getPendingReply(sessionId: string): Promise<{
+    pending: boolean;
+    humanMode: boolean;
+    reply?: string;
+    messageId?: string;
+  }> {
+    const { rows: convRows } = await query<Conversation>(
+      'SELECT id, human_mode FROM conversations WHERE session_id = $1',
+      [sessionId]
+    );
+    if (!convRows[0]) return { pending: false, humanMode: false };
+
+    const conv = convRows[0];
+    if (!conv.human_mode) return { pending: false, humanMode: false };
+
+    const { rows: userMsgRows } = await query<{ id: string; created_at: Date }>(
+      `SELECT id, created_at FROM messages
+       WHERE conversation_id = $1 AND role = 'user'
+       ORDER BY created_at DESC LIMIT 1`,
+      [conv.id]
+    );
+
+    if (!userMsgRows[0]) return { pending: true, humanMode: true };
+
+    const { rows: replyRows } = await query<{ id: string; content: string }>(
+      `SELECT id, content FROM messages
+       WHERE conversation_id = $1 AND role = 'assistant' AND created_at > $2
+       ORDER BY created_at ASC LIMIT 1`,
+      [conv.id, userMsgRows[0].created_at]
+    );
+
+    if (!replyRows[0]) return { pending: true, humanMode: true };
+    return { pending: false, humanMode: true, reply: replyRows[0].content, messageId: replyRows[0].id };
   }
 }
 

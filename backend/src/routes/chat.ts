@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { sendMessage, sendMessageStream, getHistory, submitFeedback, deleteConversation } from '../controllers/chatController';
+import { sendMessage, sendMessageStream, getHistory, submitFeedback, deleteConversation, pollPendingReply } from '../controllers/chatController';
 import { transcribeAudio } from '../controllers/transcribeController';
 import { chatRateLimit } from '../middleware/rateLimit';
 import { chatValidators } from '../utils/validators';
@@ -33,5 +33,6 @@ router.get('/history/:sessionId', getHistory);
 router.post('/feedback/:sessionId', submitFeedback);
 router.delete('/conversation/:sessionId', deleteConversation);
 router.post('/transcribe', chatRateLimit, audioUpload.single('audio'), transcribeAudio);
+router.get('/poll/:sessionId', pollPendingReply);
 
 export default router;

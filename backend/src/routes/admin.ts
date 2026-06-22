@@ -9,6 +9,9 @@ import {
   getAIConfig,
   updateAIConfig,
   getChartData,
+  getLiveConversations,
+  toggleHumanMode,
+  adminReply,
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -26,5 +29,9 @@ router.post('/faqs', createFAQ);
 router.delete('/faqs/:id', deleteFAQ);
 router.get('/ai-config', getAIConfig);
 router.put('/ai-config', updateAIConfig);
+
+router.get('/live', getLiveConversations);
+router.put('/conversations/:id/takeover', toggleHumanMode);
+router.post('/conversations/:id/reply', adminReply);
 
 export default router;

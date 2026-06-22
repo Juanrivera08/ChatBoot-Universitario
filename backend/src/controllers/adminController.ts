@@ -67,7 +67,7 @@ export async function deleteFAQ(req: Request, res: Response, next: NextFunction)
       'UPDATE faqs SET is_active = false WHERE id = $1',
       [id]
     );
-    if (result.rowCount === 0) throw new AppError('FAQ no encontrada', 404);
+    if ((result.rowCount ?? 0) === 0) throw new AppError('FAQ no encontrada', 404);
     res.json({ message: 'FAQ eliminada correctamente' });
   } catch (error) {
     next(error);
@@ -101,31 +101,61 @@ export async function updateAIConfig(req: AuthRequest, res: Response, next: Next
   }
 }
 
+export async function getLiveConversations(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const conversations = await conversationService.getHumanModeConversations();
+    res.json({ conversations });
+  } catch (error) { next(error); }
+}
+
+export async function toggleHumanMode(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return next(new AppError('El campo "enabled" debe ser booleano', 400));
+    }
+    await conversationService.setHumanMode(id, enabled);
+    res.json({ message: enabled ? 'Control tomado — IA desactivada para esta sesión' : 'IA reactivada' });
+  } catch (error) { next(error); }
+}
+
+export async function adminReply(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    if (!content?.trim()) return next(new AppError('El contenido no puede estar vacío', 400));
+    const message = await conversationService.saveMessage(id, 'assistant', content.trim());
+    res.json({ message });
+  } catch (error) { next(error); }
+}
+
 export async function getChartData(_req: Request, res: Response, next: NextFunction) {
   try {
-    const { rows: dailyMessages } = await query(`
-      SELECT DATE(created_at) as date, COUNT(*) as count
-      FROM messages
-      WHERE role = 'user' AND created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
-      ORDER BY date ASC
-    `);
-
-    const { rows: topQueries } = await query(`
-      SELECT content as query, COUNT(*) as count
-      FROM messages
-      WHERE role = 'user'
-      GROUP BY content
-      ORDER BY count DESC
-      LIMIT 10
-    `);
-
-    const { rows: categoryDist } = await query(`
-      SELECT category, COUNT(*) as count
-      FROM documents
-      WHERE is_active = true
-      GROUP BY category
-    `);
+    const [{ rows: dailyMessages }, { rows: topQueries }, { rows: categoryDist }] =
+      await Promise.all([
+        query(`
+          SELECT DATE(created_at) as date, COUNT(*) as count
+          FROM messages
+          WHERE role = 'user' AND created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY DATE(created_at)
+          ORDER BY date ASC
+        `),
+        query(`
+          SELECT LEFT(content, 100) as query, COUNT(*) as count
+          FROM messages
+          WHERE role = 'user'
+          GROUP BY LEFT(content, 100)
+          ORDER BY count DESC
+          LIMIT 10
+        `),
+        query(`
+          SELECT category, COUNT(*) as count
+          FROM documents
+          WHERE is_active = true
+          GROUP BY category
+        `),
+      ]);
 
     res.json({ dailyMessages, topQueries, categoryDist });
   } catch (error) {

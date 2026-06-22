@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  GitBranch, Plus, Trash2, ToggleLeft, ToggleRight,
-  ChevronDown, ChevronUp, ClipboardList, CheckCircle,
-  Clock, XCircle, Eye,
+  GitBranch, Trash2, ToggleLeft, ToggleRight,
+  ChevronDown, ChevronUp, ClipboardList, CheckCircle, Clock, XCircle,
 } from 'lucide-react';
 import { flowApi } from '../../api/chatApi';
 
@@ -62,38 +61,54 @@ export default function FlowManager() {
   const [isLoading, setIsLoading] = useState(true);
 
   const load = async () => {
-    const [flowsRes, subRes] = await Promise.all([
-      flowApi.getAll(),
-      flowApi.getSubmissions(),
-    ]);
-    setFlows(flowsRes.data.flows);
-    setSubmissions(subRes.data.submissions);
-    setIsLoading(false);
+    try {
+      const [flowsRes, subRes] = await Promise.all([
+        flowApi.getAll(),
+        flowApi.getSubmissions(),
+      ]);
+      setFlows(flowsRes.data.flows);
+      setSubmissions(subRes.data.submissions);
+    } catch {
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
 
   const toggleFlow = async (id: string, current: boolean) => {
-    await flowApi.toggle(id, !current);
-    setFlows((prev) => prev.map((f) => f.id === id ? { ...f, is_active: !current } : f));
+    try {
+      await flowApi.toggle(id, !current);
+      setFlows((prev) => prev.map((f) => f.id === id ? { ...f, is_active: !current } : f));
+    } catch {
+    }
   };
 
   const deleteFlow = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar el flujo "${name}"? Esto borrará todos sus pasos y configuración.`)) return;
-    await flowApi.delete(id);
-    setFlows((prev) => prev.filter((f) => f.id !== id));
+    try {
+      await flowApi.delete(id);
+      setFlows((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+    }
   };
 
   const loadSteps = async (flowId: string) => {
     if (expandedFlow === flowId) { setExpandedFlow(null); return; }
-    const { data } = await flowApi.getOne(flowId);
-    setFlows((prev) => prev.map((f) => f.id === flowId ? { ...f, steps: data.flow.steps } : f));
-    setExpandedFlow(flowId);
+    try {
+      const { data } = await flowApi.getOne(flowId);
+      setFlows((prev) => prev.map((f) => f.id === flowId ? { ...f, steps: data.flow.steps } : f));
+      setExpandedFlow(flowId);
+    } catch {
+    }
   };
 
   const updateSubmissionStatus = async (id: string, status: string) => {
-    await flowApi.updateSubmission(id, status, '');
-    setSubmissions((prev) => prev.map((s) => s.id === id ? { ...s, status: status as any } : s));
+    try {
+      await flowApi.updateSubmission(id, status, '');
+      setSubmissions((prev) => prev.map((s) => s.id === id ? { ...s, status: status as any } : s));
+    } catch {
+    }
   };
 
   const formatDate = (d: string) =>

@@ -50,6 +50,10 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
 
     await conversationService.saveMessage(conversation.id, 'user', message);
 
+    if (conversation.human_mode) {
+      return res.json({ sessionId, humanPending: true, sources: [], answer: null });
+    }
+
     const flowRes = await tryHandleFlow(message, sessionId, conversation.id);
     if (flowRes) {
       return res.json({ sessionId, answer: flowRes.message, sources: [], flowState: flowRes });
@@ -102,6 +106,11 @@ export async function sendMessageStream(req: Request, res: Response, next: NextF
     const historyForAI = history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
     await conversationService.saveMessage(conversation.id, 'user', message);
+
+    if (conversation.human_mode) {
+      sendEvent({ type: 'done', sessionId, sources: [], humanPending: true, processingTime: 0 });
+      return res.end();
+    }
 
     // Flujos guiados — respuesta inmediata sin stream
     const flowRes = await tryHandleFlow(message, sessionId, conversation.id);
@@ -162,5 +171,12 @@ export async function submitFeedback(req: Request, res: Response, next: NextFunc
   try {
     await conversationService.submitFeedback(req.params.sessionId, req.body.rating);
     res.json({ message: 'Valoración registrada, ¡gracias!' });
+  } catch (error) { next(error); }
+}
+
+export async function pollPendingReply(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await conversationService.getPendingReply(req.params.sessionId);
+    res.json(result);
   } catch (error) { next(error); }
 }

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { FlowState } from '../types';
+import { useAuthStore } from '../store/authStore';
 
 // El panel admin usa VITE_API_URL (var de entorno en build) o la ruta relativa '/api'.
 // El widget embebido en WordPress usa window.USHChatConfig.apiUrl inyectado antes del script.
@@ -21,6 +22,7 @@ export interface StreamDonePayload {
   sources: Array<{ title: string; category: string; relevance: number }>;
   processingTime: number;
   flowState?: FlowState & { message?: string };
+  humanPending?: boolean;
 }
 
 const api = axios.create({
@@ -31,7 +33,7 @@ const api = axios.create({
 
 // Interceptor para adjuntar token JWT en rutas admin
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ush_admin_token');
+  const token = useAuthStore.getState().token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -41,8 +43,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
-      localStorage.removeItem('ush_admin_token');
-      localStorage.removeItem('ush-auth-storage');
+      useAuthStore.getState().logout();
       window.location.href = '/admin/login';
     }
     return Promise.reject(error);
@@ -61,6 +62,11 @@ export const chatApi = {
 
   deleteConversation: (sessionId: string) =>
     api.delete(`/chat/conversation/${sessionId}`),
+
+  pollPendingReply: (sessionId: string) =>
+    api.get<{ pending: boolean; humanMode: boolean; reply?: string; messageId?: string }>(
+      `/chat/poll/${sessionId}`
+    ),
 
   // Streaming via fetch nativo (axios no soporta ReadableStream)
   sendMessageStream: async (
@@ -139,6 +145,12 @@ export const adminApi = {
   getAIConfig: () => api.get('/admin/ai-config'),
   updateAIConfig: (key: string, value: string) =>
     api.put('/admin/ai-config', { key, value }),
+
+  getLiveConversations: () => api.get('/admin/live'),
+  toggleTakeover: (id: string, enabled: boolean) =>
+    api.put(`/admin/conversations/${id}/takeover`, { enabled }),
+  adminReply: (id: string, content: string) =>
+    api.post(`/admin/conversations/${id}/reply`, { content }),
 };
 
 export const documentApi = {

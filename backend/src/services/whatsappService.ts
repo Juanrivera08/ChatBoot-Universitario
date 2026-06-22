@@ -66,7 +66,7 @@ class WhatsAppService {
         status: 'read',
         message_id: messageId,
       });
-    } catch { /* no crítico */ }
+    } catch (e) { logger.debug('markRead failed (non-critical):', e); }
   }
 
   // Botones interactivos para pasos de tipo "select" (máx 3 botones)

@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS flow_submissions (
 
 CREATE INDEX IF NOT EXISTS idx_submissions_status ON flow_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_submissions_created ON flow_submissions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_session ON flow_submissions(session_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_flow ON flow_submissions(flow_id);
 
 -- Trigger updated_at
 CREATE TRIGGER update_flows_updated_at

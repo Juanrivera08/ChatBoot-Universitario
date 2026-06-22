@@ -25,7 +25,7 @@ export function authenticate(req: AuthRequest, _res: Response, next: NextFunctio
 }
 
 export function requireAdmin(req: AuthRequest, _res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'admin') {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'superadmin') {
     return next(new AppError('Acceso denegado: se requieren permisos de administrador', 403));
   }
   next();

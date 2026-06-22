@@ -57,6 +57,8 @@ export interface Conversation {
   session_id: string;
   message_count: number;
   feedback: number | null;
+  human_mode: boolean;
+  human_mode_at: string | null;
   started_at: string;
   last_message_at: string;
 }

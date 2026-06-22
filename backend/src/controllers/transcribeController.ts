@@ -12,7 +12,7 @@ export async function transcribeAudio(req: Request, res: Response, next: NextFun
       return next(new AppError('No se recibió audio', 400));
     }
 
-    const audioBuffer = fs.readFileSync(filePath);
+    const audioBuffer = await fs.promises.readFile(filePath);
     const base64Audio = audioBuffer.toString('base64');
 
     // Gemini acepta audio/webm, audio/ogg, audio/mp4 entre otros

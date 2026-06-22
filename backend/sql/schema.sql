@@ -184,6 +184,14 @@ CREATE TRIGGER update_faqs_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
+-- HUMAN TAKEOVER: permite que un admin tome control de una sesión
+-- (idempotente: usa ADD COLUMN IF NOT EXISTS)
+-- ============================================================
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS human_mode BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS human_mode_at TIMESTAMP;
+CREATE INDEX IF NOT EXISTS idx_conversations_human_mode ON conversations(human_mode) WHERE human_mode = true;
+
+-- ============================================================
 -- VISTA: estadísticas del sistema
 -- ============================================================
 CREATE OR REPLACE VIEW v_dashboard_stats AS
