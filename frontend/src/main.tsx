@@ -7,9 +7,13 @@ import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/admin/ProtectedRoute';
 
+// basename desde la base de Vite (import.meta.env.BASE_URL).
+// En local es '/'; en prod bajo IIS es '/chatbot-demo/'.
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/admin/login" element={<LoginPage />} />
         <Route

@@ -7,9 +7,13 @@ RUN npm ci
 
 COPY . .
 
-# URL de la API — /api como ruta relativa, nginx la proxea al backend internamente
+# URL de la API — ruta relativa, nginx/IIS la proxea al backend internamente
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
+
+# Base del SPA — '/' en local, '/chatbot-demo/' detrás de IIS
+ARG VITE_BASE_PATH=/
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
 
 # Compilar panel admin
 RUN npm run build
