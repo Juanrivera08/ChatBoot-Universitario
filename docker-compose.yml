@@ -90,7 +90,7 @@ services:
     networks:
       - ush_network
 
-  # ─── Frontend React (nginx) ──────────────────────────────────
+  # ─── Frontend React — panel admin (dashboard) ────────────────
   frontend:
     build:
       context: ./frontend
@@ -100,9 +100,31 @@ services:
     container_name: ush_frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:8083:80"   # Solo localhost — acceso admin interno
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ush_network
+
+  # ─── Widget embebible (solo el script JS/CSS público) ────────
+  widget:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.widget
+      args:
+        VITE_API_URL: /api
+    container_name: ush_widget
+    restart: unless-stopped
+    ports:
+      - "8084:80"             # Puerto público — solo sirve el widget y la API
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/widget/ush-chat-widget.iife.js || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
