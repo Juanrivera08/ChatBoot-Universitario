@@ -9,23 +9,14 @@ import TypingIndicator from './TypingIndicator';
 interface Props {
   messages: Message[];
   isTyping: boolean;
-  onQuickReply: (text: string) => void;
   onOptionSelect: (value: string) => void;
   lastFailedMessage: string | null;
   onRetry: () => void;
 }
 
-const QUICK_REPLIES = [
-  'Fechas de matrícula',
-  'Programas disponibles',
-  'Bienestar universitario',
-  'Certificados y trámites',
-];
-
 export default function MessageList({
   messages,
   isTyping,
-  onQuickReply,
   onOptionSelect,
   lastFailedMessage,
   onRetry,
@@ -34,8 +25,6 @@ export default function MessageList({
   const endRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const prevCountRef = useRef(messages.length);
-
-  const showQuickReplies = messages.length === 1 && messages[0]?.role === 'assistant';
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -85,26 +74,6 @@ export default function MessageList({
             )
           )}
         </AnimatePresence>
-
-        {/* Respuestas rápidas al inicio */}
-        {showQuickReplies && (
-          <motion.div
-            className="mt-3 flex flex-wrap gap-2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            {QUICK_REPLIES.map((reply) => (
-              <button
-                key={reply}
-                onClick={() => onQuickReply(reply)}
-                className="rounded-full border border-ush-600/50 bg-ush-900/50 px-3 py-1.5 text-xs text-ush-300 transition-all hover:border-ush-400 hover:bg-ush-800 hover:text-white active:scale-95"
-              >
-                {reply}
-              </button>
-            ))}
-          </motion.div>
-        )}
 
         {/* Botón de reintentar si hubo error */}
         {lastFailedMessage && (

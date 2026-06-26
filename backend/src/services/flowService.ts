@@ -113,6 +113,14 @@ function normalizeInput(value: string, step: FlowStep): string {
   return trimmed;
 }
 
+// Interruptor del módulo de flujos guiados. Apagado por defecto: el módulo está
+// desactivado (no eliminado) hasta que se necesite a futuro. Para reactivarlo basta
+// con definir FLOWS_ENABLED=true en el .env del backend — no requiere tocar código.
+// Con el flag apagado, detectFlow/getActiveSession devuelven null, así que ni el chat
+// web (chatController) ni WhatsApp (whatsappController) interceptan mensajes con flujos
+// y todo lo responde la IA. El CRUD admin sigue funcionando para no perder configuración.
+const FLOWS_ENABLED = process.env.FLOWS_ENABLED === 'true';
+
 class FlowService {
   private flowsCache: { data: Flow[]; expiresAt: number } | null = null;
   private readonly FLOWS_CACHE_TTL_MS = 60_000;
@@ -131,6 +139,7 @@ class FlowService {
 
   // Detecta si el mensaje activa algún flujo configurado
   async detectFlow(message: string): Promise<Flow | null> {
+    if (!FLOWS_ENABLED) return null;
     const flows = await this.getActiveFlows();
     const normalized = message.toLowerCase();
     for (const flow of flows) {
@@ -145,6 +154,7 @@ class FlowService {
 
   // Obtiene la sesión activa de un usuario (si existe)
   async getActiveSession(sessionId: string): Promise<FlowSession | null> {
+    if (!FLOWS_ENABLED) return null;
     const { rows } = await query<FlowSession>(
       `SELECT * FROM flow_sessions WHERE session_id = $1 AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
       [sessionId]

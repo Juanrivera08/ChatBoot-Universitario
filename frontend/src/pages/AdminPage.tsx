@@ -5,7 +5,8 @@ import DocumentManager from '../components/admin/DocumentManager';
 import ConversationViewer from '../components/admin/ConversationViewer';
 import FAQManager from '../components/admin/FAQManager';
 import AISettings from '../components/admin/AISettings';
-import FlowManager from '../components/admin/FlowManager';
+// Módulo de Flujos Guiados desactivado (no eliminado) — ver nota en la ruta de abajo.
+// import FlowManager from '../components/admin/FlowManager';
 
 export default function AdminPage() {
   return (
@@ -18,7 +19,10 @@ export default function AdminPage() {
           <Route path="conversations" element={<ConversationViewer />} />
           <Route path="faqs" element={<FAQManager />} />
           <Route path="settings" element={<AISettings />} />
-          <Route path="flows" element={<FlowManager />} />
+          {/* Módulo de Flujos Guiados desactivado (no eliminado) — no se necesita por
+              ahora. Para reactivarlo: descomentar el import FlowManager de arriba, esta
+              ruta, la entrada del Sidebar, y poner FLOWS_ENABLED=true en el .env backend. */}
+          {/* <Route path="flows" element={<FlowManager />} /> */}
         </Routes>
       </main>
     </div>

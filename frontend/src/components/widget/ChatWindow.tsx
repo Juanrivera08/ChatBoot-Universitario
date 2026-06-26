@@ -251,7 +251,6 @@ export default function ChatWindow() {
         <MessageList
           messages={messages}
           isTyping={isTyping}
-          onQuickReply={handleSend}
           onOptionSelect={handleSend}
           lastFailedMessage={lastFailedMessage}
           onRetry={handleRetry}
