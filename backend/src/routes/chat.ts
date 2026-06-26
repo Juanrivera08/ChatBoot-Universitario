@@ -4,7 +4,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { sendMessage, sendMessageStream, getHistory, submitFeedback, deleteConversation, pollPendingReply } from '../controllers/chatController';
 import { transcribeAudio } from '../controllers/transcribeController';
-import { chatRateLimit } from '../middleware/rateLimit';
+import { chatRateLimit, pollRateLimit } from '../middleware/rateLimit';
 import { chatValidators } from '../utils/validators';
 
 const audioStorage = multer.diskStorage({
@@ -33,6 +33,6 @@ router.get('/history/:sessionId', getHistory);
 router.post('/feedback/:sessionId', submitFeedback);
 router.delete('/conversation/:sessionId', deleteConversation);
 router.post('/transcribe', chatRateLimit, audioUpload.single('audio'), transcribeAudio);
-router.get('/poll/:sessionId', pollPendingReply);
+router.get('/poll/:sessionId', pollRateLimit, pollPendingReply);
 
 export default router;
