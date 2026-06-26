@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Minus, Trash2, Moon, Sun } from 'lucide-react';
+import { Minus, Trash2, Moon, Sun, UserRound } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 
 export default function ChatHeader() {
-  const { closeChat, deleteConversation, toggleDarkMode, isDarkMode } = useChatStore();
+  const { closeChat, deleteConversation, toggleDarkMode, isDarkMode, humanMode } = useChatStore();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -18,16 +18,40 @@ export default function ChatHeader() {
 
   return (
     <div className="flex items-center gap-3 border-b border-white/10 bg-gradient-to-r from-ush-800 to-ush-900 px-4 py-3">
-      {/* Avatar */}
-      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-ush-400 to-ush-600">
-        <span className="text-sm font-bold text-white">IA</span>
-        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-gray-900 bg-emerald-400" />
+      {/* Avatar — cambia de "IA" a un ícono de asesor cuando un humano toma el control */}
+      <div
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${
+          humanMode ? 'from-emerald-400 to-emerald-600' : 'from-ush-400 to-ush-600'
+        }`}
+      >
+        {humanMode ? (
+          <UserRound className="h-4 w-4 text-white" />
+        ) : (
+          <span className="text-sm font-bold text-white">IA</span>
+        )}
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-gray-900 bg-emerald-400 ${
+            humanMode ? 'animate-pulse' : ''
+          }`}
+        />
       </div>
 
-      {/* Información */}
+      {/* Información — el título refleja quién está atendiendo en este momento */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-white">Asistente de Servicios Digitales</p>
-        <p className="text-xs text-ush-300">Institución Universitaria Salazar y Herrera</p>
+        {humanMode ? (
+          <>
+            <p className="truncate text-sm font-semibold text-white">Asesor de la universidad</p>
+            <p className="flex items-center gap-1 text-xs text-emerald-300">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              En línea · Atención personalizada
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="truncate text-sm font-semibold text-white">Asistente de Servicios Digitales</p>
+            <p className="text-xs text-ush-300">Institución Universitaria Salazar y Herrera</p>
+          </>
+        )}
       </div>
 
       {/* Controles */}

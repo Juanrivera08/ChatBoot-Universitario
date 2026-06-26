@@ -5,6 +5,7 @@ import { useChatStore } from '../../store/chatStore';
 import { chatApi } from '../../api/chatApi';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from './ChatHeader';
+import HumanModeBanner from './HumanModeBanner';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
@@ -32,6 +33,7 @@ export default function ChatWindow() {
     setTyping,
     setSessionId,
     removeLastMessages,
+    removeStreamingMessages,
     appendToLastAssistantMessage,
     setLastAssistantMessageData,
     ensureInitialized,
@@ -134,9 +136,20 @@ export default function ChatWindow() {
       isStreamingActive.current = false;
 
       // Modo humano: el admin responderá manualmente. El polling global
-      // (useChatPolling en ChatWidget) ya está activo y entregará la respuesta;
-      // mantenemos el indicador de escritura hasta que llegue.
+      // (useChatPolling en ChatWidget) ya está activo y entregará la respuesta.
       if (donePayload.humanPending) {
+        // Si el admin tomó el control mientras la IA ya había empezado a escribir,
+        // descartamos esa burbuja parcial: el asesor humano responderá. Borramos por
+        // el flag isStreaming (no por posición) porque el poller pudo insertar ya el
+        // aviso de sistema después de la burbuja.
+        if (!isFirstChunk) {
+          if (displayTimer.current) { clearTimeout(displayTimer.current); displayTimer.current = null; }
+          displayQueue.current = [];
+          removeStreamingMessages();
+        }
+        // Mantener los puntos de "escribiendo": le indican al usuario que el asesor
+        // va a responder. El poller los conserva hasta que llegue la respuesta real.
+        setTyping(true);
         return;
       }
 
@@ -232,6 +245,7 @@ export default function ChatWindow() {
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
     >
       <ChatHeader />
+      <HumanModeBanner />
 
       <div className="flex-1 overflow-hidden">
         <MessageList

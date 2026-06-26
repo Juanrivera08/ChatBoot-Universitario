@@ -21,7 +21,7 @@ export function useChatPolling() {
     if (intervalRef.current) return; // guard: una sola instancia de polling
 
     const tick = async () => {
-      const { sessionId, lastAdminReplyAt, addMessage, setTyping, setLastAdminReplyAt } =
+      const { sessionId, lastAdminReplyAt, addMessage, setTyping, setLastAdminReplyAt, syncHumanMode } =
         useChatStore.getState();
 
       // Sin sesión aún (el usuario no ha abierto/interactuado) → no hay nada que sondear
@@ -30,19 +30,30 @@ export function useChatPolling() {
       try {
         const { data } = await chatApi.pollPendingReply(sessionId, lastAdminReplyAt ?? undefined);
 
+        // Sincroniza el estado de atención (IA ↔ asesor) ANTES de procesar mensajes.
+        // syncHumanMode es idempotente: solo inserta el aviso de sistema en la transición.
+        syncHumanMode(data.humanMode);
+
         if (!data.humanMode) {
           // La IA tiene el control: el indicador de "escribiendo" lo gestiona el
           // flujo de streaming, así que aquí no tocamos nada.
           return;
         }
 
-        // El admin está escribiendo → mostrar los tres puntos
-        setTyping(data.adminTyping || false);
+        // En modo humano mostramos los tres puntos cuando el usuario está esperando
+        // respuesta del asesor: bien porque el admin ya está escribiendo, bien porque
+        // el último mensaje real del usuario aún no ha sido respondido. Así, al tomar
+        // el control, el usuario ve de inmediato que "el asesor va a responder".
+        const { messages } = useChatStore.getState();
+        const lastReal = [...messages].reverse().find((m) => m.role !== 'system');
+        const awaitingAdvisor = !lastReal || lastReal.role === 'user';
+        setTyping(data.adminTyping || awaitingAdvisor);
 
         if (data.replies && data.replies.length > 0) {
           setTyping(false);
           for (const reply of data.replies) {
-            addMessage({ role: 'assistant', content: reply.content });
+            // fromHuman: el mensaje lo escribió un asesor, no la IA → avatar/etiqueta de asesor.
+            addMessage({ role: 'assistant', content: reply.content, fromHuman: true });
           }
           // Avanza el cursor (persistido) para no re-agregar tras un refresh
           setLastAdminReplyAt(data.replies[data.replies.length - 1].created_at);

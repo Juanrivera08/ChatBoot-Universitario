@@ -60,6 +60,14 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
     }
 
     const aiResponse = await aiService.generateResponse(message, historyForAI, sessionId);
+
+    // El admin pudo tomar el control mientras la IA generaba: si ahora la conversación
+    // está en modo humano, descartamos la respuesta de la IA (responderá el asesor) para
+    // que no aparezca un mensaje de la IA atribuido al asesor.
+    if (await conversationService.isHumanMode(conversation.id)) {
+      return res.json({ sessionId, humanPending: true, sources: [], answer: null });
+    }
+
     const savedMessage = await conversationService.saveMessage(
       conversation.id, 'assistant', aiResponse.answer,
       { tokensUsed: aiResponse.tokensUsed, modelUsed: aiResponse.model, sources: aiResponse.sources, processingTime: aiResponse.processingTime }
@@ -126,6 +134,14 @@ export async function sendMessageStream(req: Request, res: Response, next: NextF
         fullAnswer += chunk;
         sendEvent({ type: 'chunk', content: chunk });
       });
+
+      // El admin pudo tomar el control mientras la IA generaba: descartamos la respuesta
+      // (no se guarda ni se atribuye al asesor) y señalamos modo humano. El widget quitará
+      // la burbuja parcial y mantendrá los puntos de "el asesor va a responder".
+      if (await conversationService.isHumanMode(conversation.id)) {
+        sendEvent({ type: 'done', sessionId, sources: [], humanPending: true, processingTime: 0 });
+        return res.end();
+      }
 
       const savedMessage = await conversationService.saveMessage(
         conversation.id, 'assistant', fullAnswer,

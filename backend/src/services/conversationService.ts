@@ -152,6 +152,17 @@ class ConversationService {
     if (result.rowCount === 0) throw new AppError('Conversación no encontrada', 404);
   }
 
+  // Lee el estado de control ACTUAL (no el capturado al inicio del request).
+  // Permite descartar una respuesta de la IA si el admin tomó el control mientras
+  // ésta se generaba, evitando que un mensaje de la IA aparezca como "asesor".
+  async isHumanMode(conversationId: string): Promise<boolean> {
+    const { rows } = await query<{ human_mode: boolean }>(
+      'SELECT human_mode FROM conversations WHERE id = $1',
+      [conversationId]
+    );
+    return rows[0]?.human_mode ?? false;
+  }
+
   async getHumanModeConversations(): Promise<any[]> {
     const { rows } = await query(`
       SELECT c.*, COUNT(m.id) as message_count
@@ -200,9 +211,14 @@ class ConversationService {
     const clientCursor = since ? new Date(since.getTime() + 1) : new Date(0);
     const sinceDate = clientCursor > humanModeAt ? clientCursor : humanModeAt;
 
+    // Solo entregamos mensajes ESCRITOS POR EL ASESOR humano, nunca de la IA.
+    // Distinción robusta: el admin los guarda con model_used = NULL; la IA siempre
+    // registra el modelo (p. ej. 'gemini-...'). Así, aunque una respuesta de la IA
+    // se hubiera guardado por una condición de carrera al tomar el control, jamás
+    // se mostrará al usuario como si fuera el asesor.
     const { rows: replyRows } = await query<{ id: string; content: string; created_at: Date }>(
       `SELECT id, content, created_at FROM messages
-       WHERE conversation_id = $1 AND role = 'assistant' AND created_at > $2
+       WHERE conversation_id = $1 AND role = 'assistant' AND model_used IS NULL AND created_at > $2
        ORDER BY created_at ASC`,
       [conv.id, sinceDate]
     );

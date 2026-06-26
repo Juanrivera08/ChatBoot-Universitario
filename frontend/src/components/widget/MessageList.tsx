@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import type { Message } from '../../types';
 import MessageBubble from './MessageBubble';
+import SystemNotice from './SystemNotice';
 import TypingIndicator from './TypingIndicator';
 
 interface Props {
@@ -76,9 +77,13 @@ export default function MessageList({
         className="h-full overflow-y-auto scroll-smooth px-4 py-4 [scrollbar-width:thin] [scrollbar-color:theme(colors.gray.700)_transparent]"
       >
         <AnimatePresence initial={false}>
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} onOptionSelect={onOptionSelect} />
-          ))}
+          {messages.map((message) =>
+            message.role === 'system' ? (
+              <SystemNotice key={message.id} message={message} />
+            ) : (
+              <MessageBubble key={message.id} message={message} onOptionSelect={onOptionSelect} />
+            )
+          )}
         </AnimatePresence>
 
         {/* Respuestas rápidas al inicio */}

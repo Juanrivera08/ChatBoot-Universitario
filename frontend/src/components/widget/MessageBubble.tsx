@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, UserRound } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { Message } from '../../types';
 import FlowCard from './FlowCard';
@@ -19,6 +19,7 @@ function formatTime(date: Date) {
 
 function MessageBubble({ message, onOptionSelect }: Props) {
   const isUser = message.role === 'user';
+  const isHuman = !isUser && message.fromHuman === true;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -36,21 +37,31 @@ function MessageBubble({ message, onOptionSelect }: Props) {
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
       <div className={`flex max-w-[85%] gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-        {/* Avatar del asistente */}
+        {/* Avatar — "IA" para la inteligencia artificial, ícono de asesor para un humano */}
         {!isUser && (
-          <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-ush-400 to-ush-600 text-[10px] font-bold text-white">
-            IA
+          <div
+            className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white ${
+              isHuman ? 'from-emerald-400 to-emerald-600' : 'from-ush-400 to-ush-600'
+            }`}
+          >
+            {isHuman ? <UserRound className="h-3.5 w-3.5" /> : 'IA'}
           </div>
         )}
 
         <div className="flex flex-col gap-1">
+          {/* Etiqueta de autor cuando responde un asesor humano */}
+          {isHuman && (
+            <span className="text-[10px] font-semibold text-emerald-300">Asesor de la universidad</span>
+          )}
           {/* Burbuja con botón de copiar al hover */}
           <div className="group relative">
             <div
               className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 isUser
                   ? 'rounded-tr-sm bg-gradient-to-br from-ush-500 to-ush-600 text-white'
-                  : 'rounded-tl-sm bg-gray-800 text-gray-100'
+                  : isHuman
+                    ? 'rounded-tl-sm border border-emerald-400/30 bg-emerald-950/40 text-gray-100'
+                    : 'rounded-tl-sm bg-gray-800 text-gray-100'
               }`}
             >
               {isUser ? (

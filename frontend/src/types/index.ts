@@ -14,13 +14,17 @@ export interface FlowState {
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  // 'system' = aviso del propio widget (p. ej. transferencia a un asesor humano),
+  // no proviene ni del usuario ni de la IA.
+  role: 'user' | 'assistant' | 'system';
   content: string;
   sources?: Source[];
   processingTime?: number;
   createdAt: Date;
   isStreaming?: boolean;
   flowState?: FlowState;
+  // true cuando el mensaje lo escribió un asesor humano (modo manual), no la IA.
+  fromHuman?: boolean;
 }
 
 export interface Source {
@@ -41,6 +45,10 @@ export interface ChatState {
   // created_at del último mensaje del admin ya mostrado en el widget.
   // Persistido para que, tras un refresh, el poller no re-agregue mensajes ya visibles.
   lastAdminReplyAt: string | null;
+  // Estado de atención de la conversación, espejo del `human_mode` del backend:
+  //   false → IA   |   true → un asesor humano tomó el control.
+  // Es la fuente única de verdad para toda la UI de "atendido por un asesor".
+  humanMode: boolean;
 }
 
 export interface Document {
