@@ -11,15 +11,9 @@ import MessageInput from './MessageInput';
 
 const WELCOME_MESSAGE = `¡Hola! Soy el **Asistente de Servicios Digitales** de la Institución Universitaria Salazar y Herrera.
 
-Puedo ayudarte con información sobre:
-- 📅 Calendario académico y fechas de matrícula
-- 🎓 Programas y carreras disponibles
-- 📋 Reglamentos y normativas
-- 🏥 Servicios de bienestar universitario
-- 📝 Trámites y certificados
-- 📞 Información de contacto
+Estoy aquí para responder tus **preguntas frecuentes** sobre la universidad: matrículas, programas, trámites, servicios y más.
 
-¿En qué puedo ayudarte?`;
+Escríbeme tu pregunta y con gusto te ayudo. 😊`;
 
 // Velocidad de visualización word-by-word (ms entre tokens)
 const WORD_DELAY_MS = 28;
