@@ -38,6 +38,9 @@ export interface ChatState {
   isDarkMode: boolean;
   unreadCount: number;
   hasEverOpened: boolean;
+  // created_at del último mensaje del admin ya mostrado en el widget.
+  // Persistido para que, tras un refresh, el poller no re-agregue mensajes ya visibles.
+  lastAdminReplyAt: string | null;
 }
 
 export interface Document {

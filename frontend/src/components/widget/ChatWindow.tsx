@@ -34,6 +34,7 @@ export default function ChatWindow() {
     removeLastMessages,
     appendToLastAssistantMessage,
     setLastAssistantMessageData,
+    ensureInitialized,
   } = useChatStore();
 
   const [inputValue, setInputValue] = useState('');
@@ -41,65 +42,21 @@ export default function ChatWindow() {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
-  const humanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSeenAtRef = useRef<string | null>(null);
 
   // Cola de tokens pendientes de mostrar y bandera de stream activo
   const displayQueue = useRef<string[]>([]);
   const isStreamingActive = useRef(false);
   const displayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const initialized = useRef(false);
-
-  // Polling universal: corre siempre mientras el widget esté abierto.
-  // Si humanMode: false → resetea lastSeenAt y espera (no para).
-  // Si humanMode: true con mensajes nuevos → los muestra.
-  // Solo para cuando el componente se desmonta.
-  const startPolling = (sid: string) => {
-    if (humanPollRef.current) return;
-    humanPollRef.current = setInterval(async () => {
-      try {
-        const { data } = await chatApi.pollPendingReply(sid, lastSeenAtRef.current ?? undefined);
-        if (!data.humanMode) {
-          // Admin devolvió control a IA — limpiar estado y seguir esperando
-          setTyping(false);
-          lastSeenAtRef.current = null;
-          return;
-        }
-        // Mostrar tres puntos si el admin está escribiendo
-        setTyping(data.adminTyping || false);
-        if (data.replies && data.replies.length > 0) {
-          setTyping(false);
-          for (const reply of data.replies) {
-            addMessage({ role: 'assistant', content: reply.content });
-          }
-          lastSeenAtRef.current = data.replies[data.replies.length - 1].created_at;
-        }
-      } catch { /* error de red — seguir intentando */ }
-    }, 1500);
-  };
-
+  // Inicialización one-shot e idempotente (saludo + sessionId). La acción lee el
+  // estado vivo del store, así que es segura ante StrictMode/doble montaje y nunca
+  // duplica el saludo. El polling del modo humano vive en ChatWidget (useChatPolling).
   useEffect(() => {
-    // Strict Mode monta el componente dos veces en dev.
-    // El flag solo protege la inicialización one-shot (mensaje de bienvenida + sessionId).
-    // startPolling va FUERA del flag para que funcione en ambos montajes.
-    if (!initialized.current) {
-      initialized.current = true;
-      if (!sessionId) setSessionId(uuidv4());
-      if (messages.length === 0) addMessage({ role: 'assistant', content: WELCOME_MESSAGE });
-    }
-
-    // Arrancar polling siempre — el guard interno evita duplicados
-    const sid = sessionId || (useChatStore.getState().sessionId ?? uuidv4());
-    startPolling(sid);
+    ensureInitialized(WELCOME_MESSAGE);
 
     return () => {
       abortRef.current?.abort();
       if (displayTimer.current) clearTimeout(displayTimer.current);
-      if (humanPollRef.current) {
-        clearInterval(humanPollRef.current);
-        humanPollRef.current = null;
-      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -176,10 +133,10 @@ export default function ChatWindow() {
 
       isStreamingActive.current = false;
 
-      // Modo humano: el admin responderá manualmente; arrancar polling continuo
+      // Modo humano: el admin responderá manualmente. El polling global
+      // (useChatPolling en ChatWidget) ya está activo y entregará la respuesta;
+      // mantenemos el indicador de escritura hasta que llegue.
       if (donePayload.humanPending) {
-        // isTyping permanece true para mostrar el indicador de escritura
-        startPolling(currentSessionId);
         return;
       }
 
@@ -224,7 +181,6 @@ export default function ChatWindow() {
     } catch (err: any) {
       isStreamingActive.current = false;
       if (displayTimer.current) { clearTimeout(displayTimer.current); displayTimer.current = null; }
-      if (humanPollRef.current) { clearInterval(humanPollRef.current); humanPollRef.current = null; }
       displayQueue.current = [];
 
       setTyping(false);

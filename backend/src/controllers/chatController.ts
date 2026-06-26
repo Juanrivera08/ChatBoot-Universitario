@@ -176,6 +176,10 @@ export async function submitFeedback(req: Request, res: Response, next: NextFunc
 
 export async function pollPendingReply(req: Request, res: Response, next: NextFunction) {
   try {
+    // Nunca cachear: el polling debe ver siempre el estado real (modo humano /
+    // mensajes nuevos). Sin esto, navegador o proxy pueden servir una respuesta
+    // stale y el widget no detectaría el "Tomar control" hasta refrescar.
+    res.setHeader('Cache-Control', 'no-store');
     const since = req.query.since ? new Date(req.query.since as string) : undefined;
     const result = await conversationService.getPendingReply(req.params.sessionId, since);
     res.json(result);

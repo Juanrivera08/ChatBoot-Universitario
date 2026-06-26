@@ -18,6 +18,10 @@ interface ChatActions {
   removeLastMessages: (count: number) => void;
   appendToLastAssistantMessage: (chunk: string) => void;
   setLastAssistantMessageData: (updates: Partial<Pick<Message, 'isStreaming' | 'sources' | 'processingTime' | 'flowState'>>) => void;
+  // Inicialización idempotente: garantiza sessionId y un único saludo, leyendo
+  // el estado VIVO (no un closure obsoleto). Llamable múltiples veces sin duplicar.
+  ensureInitialized: (welcome: string) => void;
+  setLastAdminReplyAt: (ts: string) => void;
 }
 
 const generateSessionId = () => uuidv4();
@@ -33,6 +37,7 @@ export const useChatStore = create<ChatState & ChatActions>()(
       isDarkMode: true,
       unreadCount: 0,
       hasEverOpened: false,
+      lastAdminReplyAt: null,
 
       openChat: () => set({ isOpen: true, isMinimized: false, unreadCount: 0, hasEverOpened: true }),
       closeChat: () => set({ isOpen: false }),
@@ -59,13 +64,13 @@ export const useChatStore = create<ChatState & ChatActions>()(
       setTyping: (isTyping) => set({ isTyping }),
       setSessionId: (id) => set({ sessionId: id }),
       toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
-      clearMessages: () => set({ messages: [], sessionId: generateSessionId(), unreadCount: 0 }),
+      clearMessages: () => set({ messages: [], sessionId: generateSessionId(), unreadCount: 0, lastAdminReplyAt: null }),
       deleteConversation: async () => {
         const currentSessionId = get().sessionId;
         if (currentSessionId) {
           try { await chatApi.deleteConversation(currentSessionId); } catch (e) { console.warn('deleteConversation:', e); }
         }
-        set({ messages: [], sessionId: generateSessionId(), unreadCount: 0 });
+        set({ messages: [], sessionId: generateSessionId(), unreadCount: 0, lastAdminReplyAt: null });
       },
       removeLastMessages: (count) =>
         set((state) => ({
@@ -89,6 +94,20 @@ export const useChatStore = create<ChatState & ChatActions>()(
           }
           return { messages };
         }),
+      ensureInitialized: (welcome) =>
+        set((state) => {
+          // Lee el estado VIVO dentro de set → idempotente frente a StrictMode,
+          // doble montaje y rehidratación de persist. Nunca duplica el saludo.
+          const updates: Partial<ChatState> = {};
+          if (!state.sessionId) updates.sessionId = generateSessionId();
+          if (state.messages.length === 0) {
+            updates.messages = [
+              { id: uuidv4(), role: 'assistant', content: welcome, createdAt: new Date() },
+            ];
+          }
+          return updates;
+        }),
+      setLastAdminReplyAt: (ts) => set({ lastAdminReplyAt: ts }),
     } as ChatState & ChatActions),
     {
       name: 'ush-chat-storage',
@@ -96,6 +115,7 @@ export const useChatStore = create<ChatState & ChatActions>()(
         sessionId: state.sessionId,
         isDarkMode: state.isDarkMode,
         hasEverOpened: state.hasEverOpened,
+        lastAdminReplyAt: state.lastAdminReplyAt,
         messages: state.messages.slice(-50),
       }),
       onRehydrateStorage: () => (state) => {

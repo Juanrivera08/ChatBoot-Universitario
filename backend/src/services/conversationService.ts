@@ -192,10 +192,13 @@ class ConversationService {
     const conv = convRows[0];
     if (!conv.human_mode) return { pending: false, humanMode: false, adminTyping: false, replies: [] };
 
-    // +1ms para evitar re-fetch por precisión de microsegundos del created_at de PostgreSQL
-    const sinceDate = since
-      ? new Date(since.getTime() + 1)
-      : conv.human_mode_at || new Date(0);
+    // Cursor del cliente (+1ms para evitar re-fetch por la precisión de microsegundos
+    // del created_at de PostgreSQL). Nunca antes del inicio de la toma de control
+    // actual: así un cursor persistido de una sesión humana anterior no re-entrega
+    // mensajes de IA generados entremedio.
+    const humanModeAt = conv.human_mode_at || new Date(0);
+    const clientCursor = since ? new Date(since.getTime() + 1) : new Date(0);
+    const sinceDate = clientCursor > humanModeAt ? clientCursor : humanModeAt;
 
     const { rows: replyRows } = await query<{ id: string; content: string; created_at: Date }>(
       `SELECT id, content, created_at FROM messages
