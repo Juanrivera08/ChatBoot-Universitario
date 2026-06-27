@@ -5,6 +5,7 @@ import DocumentManager from '../components/admin/DocumentManager';
 import ConversationViewer from '../components/admin/ConversationViewer';
 import FAQManager from '../components/admin/FAQManager';
 import AISettings from '../components/admin/AISettings';
+import Reports from '../components/admin/Reports';
 // Módulo de Flujos Guiados desactivado (no eliminado) — ver nota en la ruta de abajo.
 // import FlowManager from '../components/admin/FlowManager';
 
@@ -17,6 +18,7 @@ export default function AdminPage() {
           <Route index element={<Dashboard />} />
           <Route path="documents" element={<DocumentManager />} />
           <Route path="conversations" element={<ConversationViewer />} />
+          <Route path="reports" element={<Reports />} />
           <Route path="faqs" element={<FAQManager />} />
           <Route path="settings" element={<AISettings />} />
           {/* Módulo de Flujos Guiados desactivado (no eliminado) — no se necesita por

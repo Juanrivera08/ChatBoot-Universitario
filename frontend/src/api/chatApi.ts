@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { FlowState } from '../types';
+import type { FlowState, ReportFilters, ReportPreview, ReportQueryType } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 // El panel admin usa VITE_API_URL (var de entorno en build) o la ruta relativa '/api'.
@@ -159,7 +159,29 @@ export const adminApi = {
     api.post(`/admin/conversations/${id}/reply`, { content }),
   adminTyping: (id: string, typing: boolean) =>
     api.post(`/admin/conversations/${id}/typing`, { typing }),
+
+  // ---- Reportes ----
+  getReportQueryTypes: () =>
+    api.get<{ queryTypes: ReportQueryType[] }>('/admin/reports/query-types'),
+  getReportPreview: (filters: ReportFilters) =>
+    api.get<ReportPreview>('/admin/reports/preview', { params: cleanReportParams(filters) }),
+  // Descargas: responseType blob para recibir el archivo binario con el JWT adjunto.
+  exportReport: (format: 'pdf' | 'excel', filters: ReportFilters) =>
+    api.get(`/admin/reports/export/${format}`, {
+      params: cleanReportParams(filters),
+      responseType: 'blob',
+    }),
 };
+
+// Elimina filtros vacíos y normaliza includeTranscript a '1'/undefined.
+function cleanReportParams(filters: ReportFilters): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  if (filters.queryType) params.queryType = filters.queryType;
+  if (filters.includeTranscript) params.includeTranscript = '1';
+  return params;
+}
 
 export const documentApi = {
   getAll: (category?: string) =>

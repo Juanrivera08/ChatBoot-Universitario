@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, MessageSquare, HelpCircle,
-  Settings, LogOut, Bot,
+  Settings, LogOut, Bot, FileBarChart,
   // GitBranch,  // ← módulo de Flujos Guiados desactivado (ver nota abajo)
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/documents', label: 'Documentos', icon: FileText },
   { to: '/admin/conversations', label: 'Conversaciones', icon: MessageSquare },
+  { to: '/admin/reports', label: 'Reportes', icon: FileBarChart },
   // Módulo de Flujos Guiados desactivado (no eliminado) — no se necesita por ahora.
   // Para reactivarlo: descomentar esta línea, el import GitBranch de arriba y la ruta
   // en AdminPage.tsx, y poner FLOWS_ENABLED=true en el .env del backend.

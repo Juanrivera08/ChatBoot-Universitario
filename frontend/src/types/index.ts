@@ -102,3 +102,57 @@ export interface AdminUser {
   fullName: string;
   role: string;
 }
+
+// ---- Módulo de Reportes ----
+export interface ReportQueryType {
+  code: string;
+  label: string;
+}
+
+export interface ReportRow {
+  id: string;
+  user: string;
+  sessionId: string;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  durationLabel: string;
+  queryType: string;
+  queryTypeLabel: string;
+  summary: string;
+  messageCount: number;
+  userMessages: number;
+  satisfaction: number | null;
+  status: 'En atención humana' | 'Resuelta' | 'Activa' | 'Inactiva';
+}
+
+export interface ReportSummary {
+  totalConversations: number;
+  totalMessages: number;
+  avgMessagesPerConversation: number;
+  avgDurationMs: number;
+  avgDurationLabel: string;
+  avgSatisfaction: number | null;
+  ratedConversations: number;
+  humanHandledConversations: number;
+  byQueryType: Array<{ code: string; label: string; count: number }>;
+}
+
+export interface ReportPreview {
+  summary: ReportSummary;
+  rows: ReportRow[];
+  filters: {
+    from: string;
+    to: string;
+    queryType: string | null;
+    queryTypeLabel: string | null;
+  };
+  generatedAt: string;
+}
+
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+  queryType?: string;
+  includeTranscript?: boolean;
+}
