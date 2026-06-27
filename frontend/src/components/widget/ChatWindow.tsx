@@ -9,11 +9,11 @@ import HumanModeBanner from './HumanModeBanner';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
-const WELCOME_MESSAGE = `¡Hola! Soy el **Asistente de Servicios Digitales** de la Institución Universitaria Salazar y Herrera.
+const WELCOME_MESSAGE = `Hola, soy el **Asistente Virtual** de la Institución Universitaria Salazar y Herrera.
 
-Estoy aquí para responder tus **preguntas frecuentes** sobre la universidad: matrículas, programas, trámites, servicios y más.
+Estoy aquí para ayudarte con cualquier duda o problema relacionado con el Campus Virtual.
 
-Escríbeme tu pregunta y con gusto te ayudo. 😊`;
+¿En qué puedo asistirte hoy?`;
 
 // Velocidad de visualización word-by-word (ms entre tokens)
 const WORD_DELAY_MS = 28;
