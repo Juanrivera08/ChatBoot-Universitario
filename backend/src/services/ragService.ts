@@ -4,12 +4,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 import { query } from '../config/database';
 import { COLLECTION_NAME } from '../config/chroma';
-import { genAI } from '../config/genai';
+import { openai } from '../config/openai';
 
 const CHUNK_SIZE = parseInt(process.env.CHUNK_SIZE || '500');
 const CHUNK_OVERLAP = parseInt(process.env.CHUNK_OVERLAP || '50');
 const TOP_K = parseInt(process.env.TOP_K || '5');
 const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
+// Modelo de embeddings de OpenAI (1536 dimensiones). NOTA: cambiar de modelo de
+// embeddings invalida la colección de Chroma existente — hay que re-indexar todo.
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'text-embedding-3-small';
 
 class RAGService {
   private chromaClient: ChromaClient;
@@ -25,6 +28,20 @@ class RAGService {
     });
   }
 
+  // Elimina y recrea la colección de Chroma desde cero. Necesario al cambiar el
+  // modelo de embeddings (la dimensión de los vectores cambia y los antiguos son
+  // incompatibles). Tras llamarla hay que re-indexar todos los documentos.
+  async resetCollection(): Promise<void> {
+    try {
+      await this.chromaClient.deleteCollection({ name: COLLECTION_NAME });
+      logger.info(`Colección "${COLLECTION_NAME}" eliminada.`);
+    } catch {
+      logger.info(`La colección "${COLLECTION_NAME}" no existía (se creará nueva).`);
+    }
+    this.collection = null;
+    await this.getCollection();
+  }
+
   private async getCollection(): Promise<Collection> {
     if (!this.collection) {
       this.collection = await this.chromaClient.getOrCreateCollection({
@@ -38,49 +55,51 @@ class RAGService {
     return this.collection;
   }
 
-  // Genera embedding con reintentos automáticos ante rate limit (429)
-  private async embedText(text: string, attempt = 1): Promise<number[]> {
+  // Genera embeddings con reintentos automáticos ante rate limit (429).
+  // OpenAI acepta un solo texto o un lote de textos en la misma petición.
+  private async embedInputs(inputs: string[], attempt = 1): Promise<number[][]> {
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-      const result = await model.embedContent(text);
-      return result.embedding.values;
+      const result = await openai.embeddings.create({ model: EMBEDDING_MODEL, input: inputs });
+      // La API mantiene el orden de entrada, pero ordenamos por index por seguridad
+      return result.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
     } catch (error: any) {
-      // Detecta rate limit por código HTTP, string en mensaje, o status en objeto de error
       const status = error?.status ?? error?.code ?? error?.response?.status ?? 0;
       const message = error?.message ?? '';
       const isRateLimit =
         status === 429 ||
         message.includes('429') ||
         message.toLowerCase().includes('too many requests') ||
-        message.toLowerCase().includes('quota') ||
         message.toLowerCase().includes('rate limit');
 
       if (isRateLimit && attempt <= 5) {
         const waitMs = Math.min(Math.pow(2, attempt) * 1000, 32000); // cap en 32s
         logger.warn(`Rate limit alcanzado. Reintentando en ${waitMs / 1000}s (intento ${attempt}/5)...`);
         await new Promise((r) => setTimeout(r, waitMs));
-        return this.embedText(text, attempt + 1);
+        return this.embedInputs(inputs, attempt + 1);
       }
       throw error;
     }
   }
 
-  // Genera embeddings respetando el límite de 100 peticiones/minuto del nivel gratuito
+  // Embedding de un solo texto (usado en la recuperación RAG por consulta)
+  private async embedText(text: string): Promise<number[]> {
+    const [embedding] = await this.embedInputs([text]);
+    return embedding;
+  }
+
+  // Genera embeddings en lotes — OpenAI permite hasta ~2048 entradas por petición.
+  // Usamos lotes de 100 para mantener cada petición dentro de límites razonables.
   private async embedBatch(texts: string[]): Promise<number[][]> {
     const embeddings: number[][] = [];
-    const DELAY_MS = 700; // ~85 req/min — por debajo del límite de 100 RPM
+    const BATCH_SIZE = 100;
 
-    logger.info(`Generando ${texts.length} embeddings (puede tardar ${Math.ceil(texts.length * DELAY_MS / 1000)}s)...`);
+    logger.info(`Generando ${texts.length} embeddings con OpenAI (${EMBEDDING_MODEL})...`);
 
-    for (let i = 0; i < texts.length; i++) {
-      const embedding = await this.embedText(texts[i]);
-      embeddings.push(embedding);
-      if (i < texts.length - 1) {
-        await new Promise((r) => setTimeout(r, DELAY_MS));
-      }
-      if ((i + 1) % 10 === 0) {
-        logger.info(`Embeddings: ${i + 1}/${texts.length} completados...`);
-      }
+    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+      const slice = texts.slice(i, i + BATCH_SIZE);
+      const batchEmbeddings = await this.embedInputs(slice);
+      embeddings.push(...batchEmbeddings);
+      logger.info(`Embeddings: ${Math.min(i + BATCH_SIZE, texts.length)}/${texts.length} completados...`);
     }
     return embeddings;
   }
@@ -118,7 +137,7 @@ class RAGService {
 
     logger.info(`Generando embeddings para ${chunks.length} chunks del documento ${documentId}...`);
 
-    // Generar embeddings con Google directamente
+    // Generar embeddings con OpenAI
     const embeddingVectors = await this.embedBatch(chunks);
 
     // Insertar en ChromaDB en lotes de 50

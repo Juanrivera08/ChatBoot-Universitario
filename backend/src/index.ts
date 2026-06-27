@@ -19,7 +19,7 @@ import { logger } from './utils/logger';
 
 // Validar variables de entorno críticas antes de arrancar
 const REQUIRED_ENV_VARS = [
-  'GOOGLE_API_KEY',
+  'OPENAI_API_KEY',
   'JWT_SECRET',
   'DB_HOST',
   'DB_PASSWORD',

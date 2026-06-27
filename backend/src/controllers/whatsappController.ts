@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { genAI } from '../config/genai';
+import { toFile } from 'openai';
+import { openai } from '../config/openai';
 import { whatsappService } from '../services/whatsappService';
 import { aiService } from '../services/aiService';
 import { flowService } from '../services/flowService';
@@ -12,17 +13,18 @@ function getSessionId(phone: string): string {
   return `wa_${phone}`;
 }
 
-// Transcribe audio de WhatsApp usando Gemini
+// Transcribe audio de WhatsApp usando Whisper (OpenAI)
 async function transcribeWhatsAppAudio(mediaId: string): Promise<string> {
   const audioBuffer = await whatsappService.downloadAudio(mediaId);
-  const base64Audio = audioBuffer.toString('base64');
+  // WhatsApp envía audios de voz en formato OGG/Opus
+  const file = await toFile(audioBuffer, 'audio.ogg', { type: 'audio/ogg' });
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  const result = await model.generateContent([
-    { inlineData: { data: base64Audio, mimeType: 'audio/ogg' } },
-    'Transcribe exactamente lo que se dice en este audio en español. Solo devuelve el texto, sin explicaciones.',
-  ]);
-  return result.response.text().trim();
+  const result = await openai.audio.transcriptions.create({
+    file,
+    model: 'whisper-1',
+    language: 'es',
+  });
+  return result.text.trim();
 }
 
 // Procesa cualquier mensaje de texto entrante (texto o transcripción de audio)
@@ -178,7 +180,7 @@ export async function receiveMessage(req: Request, res: Response): Promise<void>
             if (text) await processIncomingText(from, text, msgId);
 
           } else if (message.type === 'audio') {
-            // Nota de voz — transcribir con Gemini
+            // Nota de voz — transcribir con Whisper (OpenAI)
             const mediaId = message.audio?.id;
             if (!mediaId) continue;
 

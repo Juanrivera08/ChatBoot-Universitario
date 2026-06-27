@@ -1,5 +1,6 @@
+import OpenAI from 'openai';
 import { ragService } from './ragService';
-import { genAI } from '../config/genai';
+import { openai } from '../config/openai';
 import { query } from '../config/database';
 import { logger } from '../utils/logger';
 
@@ -17,9 +18,10 @@ interface AIResponse {
 }
 
 interface RequestContext {
-  model: ReturnType<typeof genAI.getGenerativeModel>;
   modelName: string;
-  geminiHistory: Array<{ role: string; parts: Array<{ text: string }> }>;
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+  temperature: number;
+  maxTokens: number;
   sources: Array<{ title: string; category: string; relevance: number }>;
   start: number;
 }
@@ -102,25 +104,25 @@ INSTRUCCIONES IMPORTANTES:
 - Mantén el hilo de la conversación: si el usuario hace una pregunta relacionada con un tema anterior, úsalo como contexto para responder con coherencia.
 - Si el usuario saluda explícitamente, responde de forma breve y pasa inmediatamente a ofrecer tu ayuda.`;
 
-    const geminiHistory = conversationHistory
+    const history = conversationHistory
       .filter((m) => m.role !== 'system')
       .slice(-20)
       .map((m) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
+        role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+        content: m.content,
       }));
 
-    const modelName = config.model || 'gemini-2.5-flash';
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction,
-      generationConfig: {
-        temperature: parseFloat(config.temperature || '0.3'),
-        maxOutputTokens: parseInt(config.max_tokens || '1000'),
-      },
-    });
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemInstruction },
+      ...history,
+      { role: 'user', content: userMessage },
+    ];
 
-    return { model, modelName, geminiHistory, sources, start };
+    const modelName = config.model || 'gpt-4o-mini';
+    const temperature = parseFloat(config.temperature || '0.3');
+    const maxTokens = parseInt(config.max_tokens || '1000');
+
+    return { modelName, messages, temperature, maxTokens, sources, start };
   }
 
   // Modo clásico: espera la respuesta completa antes de devolverla
@@ -131,10 +133,14 @@ INSTRUCCIONES IMPORTANTES:
   ): Promise<AIResponse> {
     try {
       const ctx = await this.buildRequestContext(userMessage, conversationHistory);
-      const chat = ctx.model.startChat({ history: ctx.geminiHistory });
-      const result = await chat.sendMessage(userMessage);
-      const answer = result.response.text() || 'Lo siento, no pude generar una respuesta.';
-      const tokensUsed = result.response.usageMetadata?.totalTokenCount || 0;
+      const result = await openai.chat.completions.create({
+        model: ctx.modelName,
+        messages: ctx.messages,
+        temperature: ctx.temperature,
+        max_tokens: ctx.maxTokens,
+      });
+      const answer = result.choices[0]?.message?.content || 'Lo siento, no pude generar una respuesta.';
+      const tokensUsed = result.usage?.total_tokens || 0;
       const processingTime = Date.now() - ctx.start;
       logger.info(`IA respondió en ${processingTime}ms | ${tokensUsed} tokens | sesión ${sessionId}`);
       return { answer, sources: ctx.sources, tokensUsed, processingTime, model: ctx.modelName };
@@ -155,30 +161,33 @@ INSTRUCCIONES IMPORTANTES:
   ): Promise<Omit<AIResponse, 'answer'>> {
     try {
       const ctx = await this.buildRequestContext(userMessage, conversationHistory);
-      const chat = ctx.model.startChat({ history: ctx.geminiHistory });
-      const streamResult = await chat.sendMessageStream(userMessage);
+      const stream = await openai.chat.completions.create({
+        model: ctx.modelName,
+        messages: ctx.messages,
+        temperature: ctx.temperature,
+        max_tokens: ctx.maxTokens,
+        stream: true,
+        stream_options: { include_usage: true },
+      });
 
-      for await (const chunk of streamResult.stream) {
-        const text = chunk.text();
+      let tokensUsed = 0;
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content;
         if (text) onChunk(text);
+        // El último chunk (con include_usage) trae el conteo de tokens
+        if (chunk.usage) tokensUsed = chunk.usage.total_tokens;
       }
 
-      const finalResponse = await streamResult.response;
-      const tokensUsed = finalResponse.usageMetadata?.totalTokenCount || 0;
       const processingTime = Date.now() - ctx.start;
       logger.info(`IA (streaming) en ${processingTime}ms | ${tokensUsed} tokens | sesión ${sessionId}`);
       return { sources: ctx.sources, tokensUsed, processingTime, model: ctx.modelName };
     } catch (error: any) {
-      const status = error?.status ?? 0;
+      const status = error?.status ?? error?.response?.status ?? 0;
       const msg = error?.message ?? '';
-      const isRateLimit = status === 429 || msg.includes('429') || msg.toLowerCase().includes('quota');
+      const isRateLimit = status === 429 || msg.includes('429') || msg.toLowerCase().includes('rate limit');
 
-      // Solo reintenta si es rate-limit por minuto (retryDelay corto), no si es quota diario
-      const retryDelay = error?.errorDetails?.find((d: any) => d['@type']?.includes('RetryInfo'))?.retryDelay;
-      const isShortRetry = retryDelay && parseInt(retryDelay) <= 30;
-
-      if (isRateLimit && isShortRetry && attempt <= 2) {
-        const waitMs = (parseInt(retryDelay) + 1) * 1000;
+      if (isRateLimit && attempt <= 2) {
+        const waitMs = Math.min(Math.pow(2, attempt) * 1000, 16000); // 2s, 4s
         logger.warn(`Rate limit temporal. Reintentando en ${waitMs / 1000}s (intento ${attempt}/2)...`);
         await new Promise((r) => setTimeout(r, waitMs));
         return this.generateResponseStream(userMessage, conversationHistory, sessionId, onChunk, attempt + 1);
@@ -190,11 +199,18 @@ INSTRUCCIONES IMPORTANTES:
   async generateConversationTitle(firstMessage: string): Promise<string> {
     try {
       const config = await this.getSystemConfig();
-      const model = genAI.getGenerativeModel({ model: config.model || 'gemini-2.5-flash' });
-      const result = await model.generateContent(
-        `Genera un título corto (máximo 6 palabras) que resuma la siguiente pregunta de un estudiante universitario. Solo devuelve el título, sin comillas ni puntuación extra.\n\nPregunta: ${firstMessage}`
-      );
-      return result.response.text()?.trim() || 'Nueva conversación';
+      const result = await openai.chat.completions.create({
+        model: config.model || 'gpt-4o-mini',
+        temperature: 0.3,
+        max_tokens: 20,
+        messages: [
+          {
+            role: 'user',
+            content: `Genera un título corto (máximo 6 palabras) que resuma la siguiente pregunta de un estudiante universitario. Solo devuelve el título, sin comillas ni puntuación extra.\n\nPregunta: ${firstMessage}`,
+          },
+        ],
+      });
+      return result.choices[0]?.message?.content?.trim() || 'Nueva conversación';
     } catch {
       return 'Nueva conversación';
     }

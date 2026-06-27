@@ -7,10 +7,10 @@
     "dev": "ts-node-dev --require dotenv/config --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:migrate": "node dist/config/migrate.js"
+    "db:migrate": "node dist/config/migrate.js",
+    "reindex": "node dist/scripts/reindexAll.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
     "@langchain/core": "^0.3.17",
     "axios": "^1.17.0",
     "bcryptjs": "^2.4.3",
@@ -25,6 +25,7 @@
     "langchain": "^0.3.0",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "openai": "^4.104.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.12.0",
     "uuid": "^10.0.0",

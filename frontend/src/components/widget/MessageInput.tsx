@@ -165,7 +165,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
             exit={{ opacity: 0 }}
           >
             <Loader2 className="h-3.5 w-3.5 animate-spin text-ush-400" />
-            <span className="text-xs text-ush-300">Transcribiendo con Gemini…</span>
+            <span className="text-xs text-ush-300">Transcribiendo…</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -240,7 +240,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
       </div>
 
       <p className="mt-2 text-center text-[10px] text-gray-600">
-        Asistente Virtual · USH · Gemini 2.5 Flash
+        Asistente Virtual · USH
       </p>
     </div>
   );

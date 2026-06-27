@@ -16,8 +16,7 @@
 #       pm2.config.js
 #       .env                       ← ¡DEBES crear este archivo!
 #     widget\                      ← carpeta copiada desde tu PC
-#       ush-chat-widget.iife.js
-#       ush-chat-widget.iife.css
+#       ush-chat-widget.iife.js    (el CSS va incluido dentro del JS)
 #       web.config
 # =============================================================================
 

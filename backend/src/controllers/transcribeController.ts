@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
-import { genAI } from '../config/genai';
+import { openai } from '../config/openai';
 import { AppError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 
@@ -12,27 +12,14 @@ export async function transcribeAudio(req: Request, res: Response, next: NextFun
       return next(new AppError('No se recibió audio', 400));
     }
 
-    const audioBuffer = await fs.promises.readFile(filePath);
-    const base64Audio = audioBuffer.toString('base64');
+    // Whisper acepta webm, ogg, mp3, mp4, wav, m4a entre otros
+    const result = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(filePath),
+      model: 'whisper-1',
+      language: 'es',
+    });
 
-    // Gemini acepta audio/webm, audio/ogg, audio/mp4 entre otros
-    const mimeType = (req.file.mimetype || 'audio/webm') as string;
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Audio,
-          mimeType,
-        },
-      },
-      'Transcribe exactamente lo que se dice en este audio en español colombiano. ' +
-      'Devuelve SOLO el texto transcrito, sin comillas, sin explicaciones adicionales. ' +
-      'Si no hay voz clara, devuelve una cadena vacía.',
-    ]);
-
-    const transcription = result.response.text().trim();
+    const transcription = result.text.trim();
     logger.info(`Audio transcrito: "${transcription.slice(0, 60)}..."`);
 
     res.json({ text: transcription });

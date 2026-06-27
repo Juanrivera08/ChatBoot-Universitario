@@ -16,9 +16,9 @@ ANTES DE EJECUTAR EL SCRIPT, HAY DOS COSAS QUE DEBES HACER:
 │  DB_USER=          → usuario de PostgreSQL                      │
 │  DB_PASSWORD=      → contraseña de PostgreSQL                   │
 │                                                                 │
-│  GOOGLE_API_KEY=   → clave nueva de Google Gemini               │
-│                      (la anterior quedó expuesta)               │
-│                      Obtenerla en: aistudio.google.com          │
+│  OPENAI_API_KEY=   → clave de OpenAI (GPT)                      │
+│                      Obtenerla en:                              │
+│                      platform.openai.com/api-keys              │
 │                                                                 │
 │  El JWT_SECRET YA ESTÁ generado, no lo cambies.                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -55,10 +55,32 @@ ANTES DE EJECUTAR EL SCRIPT, HAY DOS COSAS QUE DEBES HACER:
 │  4. Guardar. El botón del chat aparece en todo el sitio. ✓     │
 └─────────────────────────────────────────────────────────────────┘
 
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚠ IMPORTANTE — SI EL SERVIDOR YA TENÍA EL CHATBOT CON GEMINI    │
+│                                                                 │
+│  Cambiamos la IA de Google Gemini a OpenAI (GPT). Esto obliga   │
+│  a dos pasos extra UNA SOLA VEZ, después de copiar esta carpeta │
+│  y antes (o justo después) de reiniciar el backend:             │
+│                                                                 │
+│  1) Actualizar el modelo guardado en la base de datos:          │
+│       psql -U <usuario> -d ush_chatbot -f backend\sql\          │
+│            migrate_to_openai.sql                                 │
+│                                                                 │
+│  2) Re-indexar los documentos con los embeddings de OpenAI      │
+│     (los vectores de Gemini son incompatibles). Desde la        │
+│     carpeta backend:                                            │
+│       cd backend                                                │
+│       node dist\scripts\reindexAll.js                           │
+│                                                                 │
+│  Sin estos dos pasos, el chatbot NO encontrará información en   │
+│  los documentos. En una instalación NUEVA no hacen falta.       │
+└─────────────────────────────────────────────────────────────────┘
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   COMANDOS ÚTILES (para después de la instalación):
 
   pm2 status          → ver si el backend está corriendo
   pm2 logs            → ver errores en tiempo real
   pm2 restart all     → reiniciar si algo falla
+  pm2 restart all --update-env → recargar tras cambiar el .env
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

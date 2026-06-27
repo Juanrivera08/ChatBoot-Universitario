@@ -213,7 +213,7 @@ class ConversationService {
 
     // Solo entregamos mensajes ESCRITOS POR EL ASESOR humano, nunca de la IA.
     // Distinción robusta: el admin los guarda con model_used = NULL; la IA siempre
-    // registra el modelo (p. ej. 'gemini-...'). Así, aunque una respuesta de la IA
+    // registra el modelo (p. ej. 'gpt-...'). Así, aunque una respuesta de la IA
     // se hubiera guardado por una condición de carrera al tomar el control, jamás
     // se mostrará al usuario como si fuera el asesor.
     const { rows: replyRows } = await query<{ id: string; content: string; created_at: Date }>(
