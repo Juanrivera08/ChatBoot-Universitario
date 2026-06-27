@@ -109,21 +109,6 @@ function MessageBubble({ message, onOptionSelect }: Props) {
             </button>
           </div>
 
-          {/* Fuentes del RAG */}
-          {!isUser && message.sources && message.sources.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {message.sources.map((source, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 rounded-full bg-ush-900/60 px-2 py-0.5 text-[10px] text-ush-300"
-                  title={`Fuente institucional · ${source.relevance}% de relevancia`}
-                >
-                  📄 {source.title}
-                </span>
-              ))}
-            </div>
-          )}
-
           {/* Componente de flujo guiado */}
           {!isUser && message.flowState && onOptionSelect && (
             <FlowCard flowState={message.flowState} onOptionSelect={onOptionSelect} />
