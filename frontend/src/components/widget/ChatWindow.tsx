@@ -9,11 +9,9 @@ import HumanModeBanner from './HumanModeBanner';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
-const WELCOME_MESSAGE = `Hola, soy el **Asistente Virtual** de la Institución Universitaria Salazar y Herrera.
+const WELCOME_MESSAGE = `Soy **SYHbot**, estoy aquí para ayudarte con preguntas relacionadas con el campus virtual.
 
-Estoy aquí para ayudarte con cualquier duda o problema relacionado con el Campus Virtual.
-
-¿En qué puedo asistirte hoy?`;
+¿En qué te puedo asistir?`;
 
 // Velocidad de visualización word-by-word (ms entre tokens)
 const WORD_DELAY_MS = 28;
