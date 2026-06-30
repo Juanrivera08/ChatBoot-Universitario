@@ -9,7 +9,7 @@ import HumanModeBanner from './HumanModeBanner';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
-const WELCOME_MESSAGE = `Soy **SYHbot**, estoy aquí para ayudarte con preguntas relacionadas con el campus virtual.
+const WELCOME_MESSAGE = `Soy tu **asistente virtual**, estoy aquí para ayudarte con preguntas relacionadas con el campus virtual.
 
 ¿En qué te puedo asistir?`;
 
