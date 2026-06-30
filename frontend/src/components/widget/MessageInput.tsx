@@ -240,7 +240,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
       </div>
 
       <p className="mt-2 text-center text-[10px] text-gray-600">
-        SYHbot
+        Asistente
       </p>
     </div>
   );
