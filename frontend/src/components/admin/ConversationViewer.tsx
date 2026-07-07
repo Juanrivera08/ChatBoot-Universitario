@@ -34,7 +34,7 @@ export default function ConversationViewer() {
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const liveRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchConversations = () =>
@@ -119,7 +119,11 @@ export default function ConversationViewer() {
       setReplyText((prev) => ({ ...prev, [convId]: '' }));
       const { data } = await adminApi.getConversationMessages(convId);
       setMessages((prev) => ({ ...prev, [convId]: data.messages }));
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      // Scroll solo dentro del contenedor de mensajes (no de la página completa)
+      setTimeout(() => {
+        const el = messagesContainerRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }, 50);
     } finally {
       setSendingReply(null);
     }
@@ -233,7 +237,7 @@ export default function ConversationViewer() {
                         <div className="h-5 w-5 animate-spin rounded-full border-2 border-ush-500 border-t-transparent" />
                       </div>
                     ) : (
-                      <div className="space-y-3 max-h-80 overflow-y-auto pb-2">
+                      <div ref={messagesContainerRef} className="space-y-3 max-h-80 overflow-y-auto pb-2">
                         {messages[conv.id].map((msg) => (
                           <div
                             key={msg.id}
@@ -254,7 +258,6 @@ export default function ConversationViewer() {
                             </div>
                           </div>
                         ))}
-                        <div ref={messagesEndRef} />
                       </div>
                     )}
                   </div>
