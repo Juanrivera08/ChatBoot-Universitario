@@ -6,10 +6,15 @@ import ConversationViewer from '../components/admin/ConversationViewer';
 import FAQManager from '../components/admin/FAQManager';
 import AISettings from '../components/admin/AISettings';
 import Reports from '../components/admin/Reports';
+import { useAdminNotifications } from '../hooks/useAdminNotifications';
 // Módulo de Flujos Guiados desactivado (no eliminado) — ver nota en la ruta de abajo.
 // import FlowManager from '../components/admin/FlowManager';
 
 export default function AdminPage() {
+  // Vigilante global: alerta (sonido/notificación/badge) cuando un usuario espera
+  // respuesta del asesor, en cualquier pantalla del panel.
+  useAdminNotifications();
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950 font-sans text-white">
       <Sidebar />

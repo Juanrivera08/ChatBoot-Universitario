@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { FlowState, ReportFilters, ReportPreview, ReportQueryType } from '../types';
+import type { FlowState, LiveConversation, ReportFilters, ReportPreview, ReportQueryType } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 // El panel admin usa VITE_API_URL (var de entorno en build) o la ruta relativa '/api'.
@@ -152,7 +152,8 @@ export const adminApi = {
   updateAIConfig: (key: string, value: string) =>
     api.put('/admin/ai-config', { key, value }),
 
-  getLiveConversations: () => api.get('/admin/live'),
+  getLiveConversations: () =>
+    api.get<{ conversations: LiveConversation[] }>('/admin/live'),
   toggleTakeover: (id: string, enabled: boolean) =>
     api.put(`/admin/conversations/${id}/takeover`, { enabled }),
   adminReply: (id: string, content: string) =>

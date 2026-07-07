@@ -74,6 +74,19 @@ export interface Conversation {
   last_message_at: string;
 }
 
+// Conversación en modo humano tal como la devuelve /admin/live.
+// awaiting_reply = el último mensaje es del usuario → el asesor debe responder.
+export interface LiveConversation {
+  id: string;
+  session_id: string;
+  message_count: number | string;
+  human_mode: boolean;
+  human_mode_at: string | null;
+  started_at: string;
+  last_message_at: string;
+  awaiting_reply: boolean;
+}
+
 export interface DashboardStats {
   total_conversations: number;
   conversations_today: number;

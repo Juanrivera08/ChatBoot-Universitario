@@ -165,7 +165,16 @@ class ConversationService {
 
   async getHumanModeConversations(): Promise<any[]> {
     const { rows } = await query(`
-      SELECT c.*, COUNT(m.id) as message_count
+      SELECT c.*, COUNT(m.id) as message_count,
+        -- awaiting_reply: el último mensaje lo escribió el usuario, así que el
+        -- asesor aún no ha respondido. Alimenta las alertas del panel admin.
+        (
+          SELECT lm.role = 'user'
+          FROM messages lm
+          WHERE lm.conversation_id = c.id
+          ORDER BY lm.created_at DESC
+          LIMIT 1
+        ) AS awaiting_reply
       FROM conversations c
       LEFT JOIN messages m ON c.id = m.conversation_id
       WHERE c.human_mode = true
