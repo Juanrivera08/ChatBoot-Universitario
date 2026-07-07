@@ -11,6 +11,14 @@ interface Message {
   created_at: string;
 }
 
+// Título legible de la conversación: la primera consulta del usuario.
+// Colapsa saltos de línea y recorta para que quepa en una línea del listado.
+function conversationTitle(conv: Conversation): string {
+  const msg = conv.first_user_message?.replace(/\s+/g, ' ').trim();
+  if (!msg) return 'Conversación sin mensajes';
+  return msg.length > 80 ? msg.slice(0, 79) + '…' : msg;
+}
+
 function StarRating({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-gray-600">Sin valorar</span>;
   return (
@@ -190,16 +198,16 @@ export default function ConversationViewer() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-white truncate">
-                      Sesión {conv.session_id.slice(0, 8)}...
+                      {conversationTitle(conv)}
                     </p>
                     {conv.human_mode && (
-                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 uppercase tracking-wide">
+                      <span className="shrink-0 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 uppercase tracking-wide">
                         Live
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    {formatDate(conv.started_at)} · {conv.message_count || 0} mensajes
+                  <p className="text-xs text-gray-500 truncate">
+                    #{conv.session_id.slice(0, 8)} · {formatDate(conv.started_at)} · {conv.message_count || 0} mensajes
                   </p>
                 </div>
                 <StarRating rating={conv.feedback} />

@@ -124,7 +124,13 @@ class ConversationService {
     const { rows } = await query(
       `SELECT c.*,
               COUNT(m.id) as message_count,
-              MAX(m.created_at) as last_activity
+              MAX(m.created_at) as last_activity,
+              -- Primera consulta del usuario: sirve de título legible en el panel
+              (SELECT mu.content
+                 FROM messages mu
+                WHERE mu.conversation_id = c.id AND mu.role = 'user'
+                ORDER BY mu.created_at ASC
+                LIMIT 1) as first_user_message
        FROM conversations c
        LEFT JOIN messages m ON c.id = m.conversation_id
        GROUP BY c.id

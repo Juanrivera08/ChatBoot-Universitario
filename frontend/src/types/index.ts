@@ -72,6 +72,8 @@ export interface Conversation {
   human_mode_at: string | null;
   started_at: string;
   last_message_at: string;
+  /** Primera consulta del usuario — se usa como título legible en el panel. */
+  first_user_message?: string | null;
 }
 
 // Conversación en modo humano tal como la devuelve /admin/live.
