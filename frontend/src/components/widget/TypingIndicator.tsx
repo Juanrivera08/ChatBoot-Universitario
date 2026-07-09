@@ -24,11 +24,13 @@ export default function TypingIndicator() {
 
       <div className="flex flex-col gap-1">
         {humanMode && (
-          <span className="text-[10px] font-semibold text-emerald-300">El asesor está escribiendo…</span>
+          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-300">El asesor está escribiendo…</span>
         )}
         <div
           className={`flex items-center gap-1.5 rounded-2xl rounded-tl-sm px-4 py-3.5 ${
-            humanMode ? 'border border-emerald-400/30 bg-emerald-950/40' : 'bg-gray-800'
+            humanMode
+              ? 'border border-emerald-500/30 bg-emerald-50 dark:border-emerald-400/30 dark:bg-emerald-950/40'
+              : 'bg-gray-100 dark:bg-gray-800'
           }`}
         >
           {[0, 1, 2].map((i) => (

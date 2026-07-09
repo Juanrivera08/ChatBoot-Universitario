@@ -12,11 +12,11 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
   const pct = Math.round((current / total) * 100);
   return (
     <div className="mb-3 mt-1">
-      <div className="mb-1 flex items-center justify-between text-[10px] text-gray-500">
+      <div className="mb-1 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400">
         <span>Paso {current} de {total}</span>
         <span>{pct}%</span>
       </div>
-      <div className="h-1 w-full overflow-hidden rounded-full bg-gray-700">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <motion.div
           className="h-full rounded-full bg-gradient-to-r from-ush-500 to-ush-400"
           initial={{ width: 0 }}
@@ -43,17 +43,17 @@ function CompletionCard({ radicado, flowName, data }: {
     >
       <div className="flex items-center gap-2 border-b border-emerald-500/15 bg-emerald-500/10 px-4 py-2.5">
         <CheckCircle className="h-4 w-4 text-emerald-400" />
-        <span className="text-xs font-semibold text-emerald-300">{flowName}</span>
+        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{flowName}</span>
       </div>
       <div className="px-4 py-3">
-        <p className="mb-3 text-xs text-gray-400">Número de radicado:</p>
-        <div className="flex items-center justify-between rounded-lg bg-gray-800 px-3 py-2">
-          <span className="font-mono text-sm font-bold tracking-wider text-ush-300">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">Número de radicado:</p>
+        <div className="flex items-center justify-between rounded-lg bg-gray-100 px-3 py-2 dark:bg-gray-800">
+          <span className="font-mono text-sm font-bold tracking-wider text-ush-700 dark:text-ush-300">
             {radicado}
           </span>
           <button
             onClick={() => navigator.clipboard?.writeText(radicado)}
-            className="ml-2 text-[10px] text-gray-500 hover:text-gray-300"
+            className="ml-2 text-[10px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
           >
             copiar
           </button>
@@ -64,7 +64,7 @@ function CompletionCard({ radicado, flowName, data }: {
             .map(([key, val]) => (
               <div key={key} className="flex gap-2 text-[11px]">
                 <span className="capitalize text-gray-500">{key.replace(/_/g, ' ')}:</span>
-                <span className="text-gray-300">{String(val)}</span>
+                <span className="text-gray-700 dark:text-gray-300">{String(val)}</span>
               </div>
             ))}
         </div>
@@ -98,7 +98,7 @@ export default function FlowCard({ flowState, onOptionSelect }: Props) {
             <motion.button
               key={opt.value}
               onClick={() => onOptionSelect(opt.value)}
-              className="rounded-lg border border-ush-600/40 bg-ush-900/40 px-3 py-1.5 text-xs text-ush-200 transition-all hover:border-ush-400 hover:bg-ush-800 hover:text-white active:scale-95"
+              className="rounded-lg border border-ush-300 bg-ush-50 px-3 py-1.5 text-xs text-ush-700 transition-all hover:border-ush-400 hover:bg-ush-100 active:scale-95 dark:border-ush-600/40 dark:bg-ush-900/40 dark:text-ush-200 dark:hover:border-ush-400 dark:hover:bg-ush-800 dark:hover:text-white"
               whileTap={{ scale: 0.95 }}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}

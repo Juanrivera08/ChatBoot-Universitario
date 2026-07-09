@@ -51,7 +51,9 @@ export const useChatStore = create<ChatState & ChatActions>()(
       messages: [],
       isTyping: false,
       sessionId: null,
-      isDarkMode: true,
+      // Por defecto modo claro ("normal"): el sitio de la universidad es blanco/azul.
+      // El usuario puede pasar a modo noche con el botón; la preferencia se persiste.
+      isDarkMode: false,
       unreadCount: 0,
       hasEverOpened: false,
       lastAdminReplyAt: null,

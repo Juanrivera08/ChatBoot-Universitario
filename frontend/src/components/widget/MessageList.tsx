@@ -63,7 +63,7 @@ export default function MessageList({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-auto scroll-smooth px-4 py-4 [scrollbar-width:thin] [scrollbar-color:theme(colors.gray.700)_transparent]"
+        className="h-full overflow-y-auto scroll-smooth px-4 py-4 [scrollbar-width:thin] [scrollbar-color:theme(colors.gray.300)_transparent] dark:[scrollbar-color:theme(colors.gray.700)_transparent]"
       >
         <AnimatePresence initial={false}>
           {messages.map((message) =>

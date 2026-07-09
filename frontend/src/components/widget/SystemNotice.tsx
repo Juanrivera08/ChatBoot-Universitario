@@ -20,7 +20,7 @@ function SystemNotice({ message }: Props) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 350, damping: 28 }}
     >
-      <div className="flex max-w-[90%] items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-2 text-center text-xs font-medium leading-relaxed text-emerald-200 shadow-sm shadow-emerald-900/20">
+      <div className="flex max-w-[90%] items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-center text-xs font-medium leading-relaxed text-emerald-700 shadow-sm shadow-emerald-900/20 dark:border-emerald-400/30 dark:text-emerald-200">
         <span className="whitespace-pre-wrap break-words">{message.content}</span>
       </div>
     </motion.div>

@@ -123,7 +123,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <div className="border-t border-white/10 bg-gray-900 px-3 py-3">
+    <div className="border-t border-gray-200 bg-white px-3 py-3 dark:border-white/10 dark:bg-gray-900">
 
       {/* Barra de grabación activa */}
       <AnimatePresence>
@@ -159,13 +159,13 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
       <AnimatePresence>
         {isTranscribing && (
           <motion.div
-            className="mb-2 flex items-center gap-2 rounded-lg border border-ush-500/25 bg-ush-900/30 px-3 py-1.5"
+            className="mb-2 flex items-center gap-2 rounded-lg border border-ush-500/25 bg-ush-50 px-3 py-1.5 dark:bg-ush-900/30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-ush-400" />
-            <span className="text-xs text-ush-300">Transcribiendo…</span>
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-ush-500 dark:text-ush-400" />
+            <span className="text-xs text-ush-700 dark:text-ush-300">Transcribiendo…</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -186,10 +186,10 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
       </AnimatePresence>
 
       {/* Caja de input */}
-      <div className={`flex items-end gap-2 rounded-xl border bg-gray-800 px-3 py-2 transition-all ${
+      <div className={`flex items-end gap-2 rounded-xl border bg-gray-100 px-3 py-2 transition-all dark:bg-gray-800 ${
         isRecording
           ? 'border-red-500/50 shadow-[0_0_14px_rgba(239,68,68,0.15)]'
-          : 'border-white/10 focus-within:border-ush-500/60'
+          : 'border-gray-300 focus-within:border-ush-500/60 dark:border-white/10'
       }`}>
         <textarea
           ref={textareaRef}
@@ -203,7 +203,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
             : 'Escribe o usa el micrófono…'
           }
           rows={1}
-          className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent text-sm text-white placeholder-gray-500 outline-none disabled:opacity-50"
+          className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none disabled:opacity-50 dark:text-white dark:placeholder-gray-500"
           style={{ scrollbarWidth: 'none' }}
         />
 
@@ -215,7 +215,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               isRecording
                 ? 'bg-red-500 text-white hover:bg-red-400'
-                : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                : 'text-gray-500 hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
             }`}
             whileTap={{ scale: 0.88 }}
             title={isRecording ? 'Detener grabación' : 'Grabar audio'}
@@ -239,7 +239,7 @@ export default function MessageInput({ value, onChange, onSend, isDisabled }: Pr
         </motion.button>
       </div>
 
-      <p className="mt-2 text-center text-[10px] text-gray-600">
+      <p className="mt-2 text-center text-[10px] text-gray-400 dark:text-gray-600">
         Asistente
       </p>
     </div>

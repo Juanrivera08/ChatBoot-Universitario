@@ -51,7 +51,7 @@ function MessageBubble({ message, onOptionSelect }: Props) {
         <div className="flex flex-col gap-1">
           {/* Etiqueta de autor cuando responde un asesor humano */}
           {isHuman && (
-            <span className="text-[10px] font-semibold text-emerald-300">Asesor de la universidad</span>
+            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-300">Asesor de la universidad</span>
           )}
           {/* Burbuja con botón de copiar al hover */}
           <div className="group relative">
@@ -60,8 +60,8 @@ function MessageBubble({ message, onOptionSelect }: Props) {
                 isUser
                   ? 'rounded-tr-sm bg-gradient-to-br from-ush-500 to-ush-600 text-white'
                   : isHuman
-                    ? 'rounded-tl-sm border border-emerald-400/30 bg-emerald-950/40 text-gray-100'
-                    : 'rounded-tl-sm bg-gray-800 text-gray-100'
+                    ? 'rounded-tl-sm border border-emerald-500/30 bg-emerald-50 text-gray-800 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-gray-100'
+                    : 'rounded-tl-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100'
               }`}
             >
               {isUser ? (
@@ -73,10 +73,10 @@ function MessageBubble({ message, onOptionSelect }: Props) {
                       p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                       ul: ({ children }) => <ul className="ml-4 list-disc space-y-1">{children}</ul>,
                       ol: ({ children }) => <ol className="ml-4 list-decimal space-y-1">{children}</ol>,
-                      li: ({ children }) => <li className="text-gray-200">{children}</li>,
-                      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                      li: ({ children }) => <li className="text-gray-700 dark:text-gray-200">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>,
                       code: ({ children }) => (
-                        <code className="rounded bg-gray-700 px-1.5 py-0.5 font-mono text-xs text-ush-300">
+                        <code className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-xs text-ush-700 dark:bg-gray-700 dark:text-ush-300">
                           {children}
                         </code>
                       ),
@@ -101,7 +101,7 @@ function MessageBubble({ message, onOptionSelect }: Props) {
               onClick={handleCopy}
               className={`absolute top-2 rounded-md p-1 opacity-0 transition-all group-hover:opacity-100 ${
                 isUser ? '-left-7' : '-right-7'
-              } ${copied ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
+              } ${copied ? 'text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'}`}
               title={copied ? '¡Copiado!' : 'Copiar mensaje'}
               aria-label="Copiar mensaje"
             >
@@ -115,7 +115,7 @@ function MessageBubble({ message, onOptionSelect }: Props) {
           )}
 
           {/* Timestamp */}
-          <span className={`text-[10px] text-gray-500 ${isUser ? 'text-right' : ''}`}>
+          <span className={`text-[10px] text-gray-400 dark:text-gray-500 ${isUser ? 'text-right' : ''}`}>
             {formatTime(message.createdAt)}
           </span>
         </div>
