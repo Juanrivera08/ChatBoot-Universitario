@@ -5,13 +5,17 @@ import { useAdminAlertsStore } from '../store/adminAlertsStore';
 const POLL_INTERVAL_MS = 4000;
 
 /**
- * Vigilante global de conversaciones que necesitan atención humana.
+ * Vigilante global de la actividad del chat para el panel admin.
  *
  * Se monta una sola vez en el layout del panel (AdminPage), así funciona en
  * cualquier pantalla del admin, no solo en "Conversaciones". Cada pocos segundos
- * consulta /admin/live y:
- *   - Publica en el store el nº de conversaciones esperando respuesta (badge).
- *   - Cuando llega un mensaje NUEVO del usuario en modo humano, alerta al admin:
+ * consulta /admin/live (todas las conversaciones recientes, en cualquier modo) y:
+ *   - Publica en el store el nº de conversaciones en modo humano esperando
+ *     respuesta del asesor (badge del menú "Conversaciones").
+ *   - Alerta al admin cuando:
+ *       · se INICIA una conversación nueva (primer mensaje del usuario), o
+ *       · un usuario ENVÍA un mensaje nuevo en una conversación ya existente,
+ *     sin importar si la atiende la IA o un asesor. La alerta combina:
  *       · pitido corto (WebAudio, sin archivos de audio)
  *       · notificación del navegador (si concedió permiso)
  *       · parpadeo del título de la pestaña mientras esté en segundo plano
@@ -20,8 +24,13 @@ const POLL_INTERVAL_MS = 4000;
  */
 export function useAdminNotifications() {
   const setAttentionCount = useAdminAlertsStore((s) => s.setAttentionCount);
-  // convId -> last_message_at ya "visto". Detecta mensajes nuevos por conversación.
-  const seenRef = useRef<Map<string, string>>(new Map());
+  // convId -> last_user_message_at ya "visto". Detecta, por conversación:
+  //   · ausente en el mapa  → conversación nunca vista
+  //   · valor null          → vista pero el usuario aún no había escrito
+  //   · valor cambiado      → el usuario mandó un mensaje nuevo
+  // No se poda: conservar los ids evita re-avisar de conversaciones que salen y
+  // vuelven a entrar en la ventana reciente.
+  const seenRef = useRef<Map<string, string | null>>(new Map());
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -36,22 +45,39 @@ export function useAdminNotifications() {
     const poll = async () => {
       try {
         const { data } = await adminApi.getLiveConversations();
-        const awaiting = (data.conversations || []).filter((c) => c.awaiting_reply);
-        setAttentionCount(awaiting.length);
+        const conversations = data.conversations || [];
 
-        // ¿Hay conversaciones con un mensaje del usuario que no habíamos visto?
-        let newMessages = 0;
-        for (const c of awaiting) {
-          if (seenRef.current.get(c.id) !== c.last_message_at) newMessages++;
+        // Badge: conversaciones en modo humano donde el usuario espera al asesor.
+        const awaitingHuman = conversations.filter(
+          (c) => c.human_mode && c.awaiting_reply
+        ).length;
+        setAttentionCount(awaitingHuman);
+
+        // Detectar novedades comparando contra lo ya visto (salvo la 1ª carga).
+        if (initializedRef.current) {
+          let newConversations = 0;
+          let newUserMessages = 0;
+          const { markUnread } = useAdminAlertsStore.getState();
+          for (const c of conversations) {
+            if (!c.last_user_message_at) continue; // sin mensajes del usuario aún
+            const seen = seenRef.current.get(c.id);
+            if (!seen) {
+              // Primer mensaje del usuario que vemos en esta conversación.
+              newConversations++;
+              markUnread(c.id); // resalta la fila en la lista de Conversaciones
+            } else if (c.last_user_message_at !== seen) {
+              newUserMessages++;
+              markUnread(c.id);
+            }
+          }
+          if (newConversations > 0 || newUserMessages > 0) {
+            notifyNewActivity({ newConversations, newUserMessages });
+          }
         }
 
-        // Refrescar el "visto" con el estado actual (solo las que esperan respuesta).
-        const nextSeen = new Map<string, string>();
-        for (const c of awaiting) nextSeen.set(c.id, c.last_message_at);
-        seenRef.current = nextSeen;
-
-        if (initializedRef.current && newMessages > 0) {
-          notifyNewActivity(awaiting.length);
+        // Actualizar la marca de "visto" con el estado actual (sin podar).
+        for (const c of conversations) {
+          seenRef.current.set(c.id, c.last_user_message_at);
         }
         initializedRef.current = true;
       } catch {
@@ -72,10 +98,17 @@ export function useAdminNotifications() {
 
 // ─────────────────────────────── Helpers ───────────────────────────────
 
-function notifyNewActivity(pendingCount: number) {
+interface Activity {
+  newConversations: number;
+  newUserMessages: number;
+}
+
+function notifyNewActivity(activity: Activity) {
   playBeep();
-  showBrowserNotification(pendingCount);
-  if (document.hidden) startTitleFlash(pendingCount);
+  showBrowserNotification(activity);
+  if (document.hidden) {
+    startTitleFlash(activity.newConversations + activity.newUserMessages);
+  }
 }
 
 /** Pitido corto generado con WebAudio (evita depender de un archivo de audio). */
@@ -104,14 +137,36 @@ function playBeep() {
   }
 }
 
-function showBrowserNotification(pendingCount: number) {
+function showBrowserNotification({ newConversations, newUserMessages }: Activity) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  // Priorizar el aviso de conversaciones nuevas; describir también los mensajes.
+  let title: string;
+  let body: string;
+  if (newConversations > 0 && newUserMessages > 0) {
+    title = 'Nueva actividad en el chat';
+    body = `${plural(newConversations, 'conversación nueva', 'conversaciones nuevas')} y ${plural(
+      newUserMessages,
+      'mensaje nuevo',
+      'mensajes nuevos'
+    )}`;
+  } else if (newConversations > 0) {
+    title = 'Nueva conversación iniciada';
+    body =
+      newConversations > 1
+        ? `${newConversations} conversaciones nuevas iniciadas`
+        : 'Un usuario inició una conversación';
+  } else {
+    title = 'Nuevo mensaje en el chat';
+    body =
+      newUserMessages > 1
+        ? `${newUserMessages} mensajes nuevos de usuarios`
+        : 'Un usuario envió un mensaje';
+  }
+
   try {
-    const n = new Notification('Nueva actividad en el chat', {
-      body:
-        pendingCount > 1
-          ? `${pendingCount} conversaciones esperan tu respuesta`
-          : 'Un usuario espera tu respuesta',
+    const n = new Notification(title, {
+      body,
       icon: '/favicon.ico',
       tag: 'ush-chat-attention', // reemplaza la anterior en lugar de apilar
     });
@@ -124,13 +179,17 @@ function showBrowserNotification(pendingCount: number) {
   }
 }
 
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 // ── Parpadeo del título de la pestaña ──
 let flashTimer: ReturnType<typeof setInterval> | null = null;
 let originalTitle = '';
 
-function startTitleFlash(pendingCount: number) {
+function startTitleFlash(newCount: number) {
   const alertTitle =
-    pendingCount > 1 ? `(${pendingCount}) Nuevos mensajes` : '(1) Nuevo mensaje';
+    newCount > 1 ? `(${newCount}) Nueva actividad` : '(1) Nueva actividad';
   if (flashTimer) return; // ya está parpadeando
   originalTitle = document.title;
   let showAlert = true;

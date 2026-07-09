@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare, Star, ChevronDown, ChevronUp, UserCheck, Bot, Send } from 'lucide-react';
 import { adminApi } from '../../api/chatApi';
+import { useAdminAlertsStore } from '../../store/adminAlertsStore';
 import type { Conversation } from '../../types';
 
 interface Message {
@@ -44,12 +45,25 @@ export default function ConversationViewer() {
   const liveRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Contador de mensajes nuevos sin abrir por conversación (lo alimenta el hook
+  // global de notificaciones). Se usa para iluminar la fila y mostrar el badge.
+  const unread = useAdminAlertsStore((s) => s.unread);
+  const clearUnread = useAdminAlertsStore((s) => s.clearUnread);
 
   const fetchConversations = () =>
     adminApi.getConversations().then(({ data }) => setConversations(data.conversations));
 
   useEffect(() => {
     fetchConversations().finally(() => setIsLoading(false));
+  }, []);
+
+  // Refresco periódico de la lista para que las conversaciones nuevas aparezcan
+  // (y se puedan iluminar) sin tener que recargar la página.
+  useEffect(() => {
+    const t = setInterval(() => {
+      fetchConversations().catch(() => {});
+    }, 5000);
+    return () => clearInterval(t);
   }, []);
 
   // Auto-refresh mensajes y lista cada 3s cuando hay conversación expandida en human_mode
@@ -81,6 +95,7 @@ export default function ConversationViewer() {
       return;
     }
     setExpanded(id);
+    clearUnread(id); // al abrir la conversación, sus mensajes dejan de estar "nuevos"
     if (!messages[id]) {
       const { data } = await adminApi.getConversationMessages(id);
       setMessages((prev) => ({ ...prev, [id]: data.messages }));
@@ -175,11 +190,15 @@ export default function ConversationViewer() {
         </div>
       ) : (
         <div className="space-y-2">
-          {conversations.map((conv) => (
+          {conversations.map((conv) => {
+            const unreadCount = unread[conv.id] || 0;
+            return (
             <div
               key={conv.id}
               className={`overflow-hidden rounded-xl border bg-gray-900 transition-colors ${
-                conv.human_mode
+                unreadCount > 0
+                  ? 'border-amber-400/60 ring-2 ring-amber-400/60 bg-amber-500/[0.04]'
+                  : conv.human_mode
                   ? 'border-emerald-500/40'
                   : 'border-white/10'
               }`}
@@ -200,6 +219,15 @@ export default function ConversationViewer() {
                     <p className="text-sm font-medium text-white truncate">
                       {conversationTitle(conv)}
                     </p>
+                    {unreadCount > 0 && (
+                      <span className="shrink-0 flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-300 uppercase tracking-wide">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        </span>
+                        {unreadCount} nuevo{unreadCount > 1 ? 's' : ''}
+                      </span>
+                    )}
                     {conv.human_mode && (
                       <span className="shrink-0 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 uppercase tracking-wide">
                         Live
@@ -310,7 +338,8 @@ export default function ConversationViewer() {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -169,11 +169,27 @@ class ConversationService {
     return rows[0]?.human_mode ?? false;
   }
 
-  async getHumanModeConversations(): Promise<any[]> {
+  // Actividad reciente de TODAS las conversaciones (no solo modo humano) para
+  // alimentar las alertas del panel admin: avisar de conversaciones nuevas y de
+  // cada mensaje del usuario, sin importar si la IA o un asesor está atendiendo.
+  //
+  // Se limita a una ventana reciente para acotar el payload del polling; el hook
+  // del frontend decide qué es "nuevo" comparando contra lo que ya había visto.
+  async getLiveActivity(): Promise<any[]> {
     const { rows } = await query(`
-      SELECT c.*, COUNT(m.id) as message_count,
-        -- awaiting_reply: el último mensaje lo escribió el usuario, así que el
-        -- asesor aún no ha respondido. Alimenta las alertas del panel admin.
+      SELECT
+        c.id,
+        c.session_id,
+        c.human_mode,
+        c.human_mode_at,
+        c.started_at,
+        c.last_message_at,
+        COUNT(m.id) AS message_count,
+        -- Momento del último mensaje escrito por el usuario. El frontend lo usa
+        -- para distinguir mensajes nuevos del usuario de respuestas de la IA/asesor.
+        MAX(m.created_at) FILTER (WHERE m.role = 'user') AS last_user_message_at,
+        -- awaiting_reply: el último mensaje lo escribió el usuario, así que aún no
+        -- se ha respondido. En modo humano alimenta el badge de "esperan respuesta".
         (
           SELECT lm.role = 'user'
           FROM messages lm
@@ -183,7 +199,7 @@ class ConversationService {
         ) AS awaiting_reply
       FROM conversations c
       LEFT JOIN messages m ON c.id = m.conversation_id
-      WHERE c.human_mode = true
+      WHERE c.last_message_at > NOW() - INTERVAL '6 hours'
       GROUP BY c.id
       ORDER BY c.last_message_at DESC
     `);

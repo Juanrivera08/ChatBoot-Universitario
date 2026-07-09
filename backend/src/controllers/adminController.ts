@@ -103,7 +103,7 @@ export async function updateAIConfig(req: AuthRequest, res: Response, next: Next
 
 export async function getLiveConversations(_req: Request, res: Response, next: NextFunction) {
   try {
-    const conversations = await conversationService.getHumanModeConversations();
+    const conversations = await conversationService.getLiveActivity();
     res.json({ conversations });
   } catch (error) { next(error); }
 }

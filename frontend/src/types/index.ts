@@ -86,6 +86,9 @@ export interface LiveConversation {
   human_mode_at: string | null;
   started_at: string;
   last_message_at: string;
+  // Momento del último mensaje del usuario (null si aún no ha escrito).
+  // Permite distinguir mensajes nuevos del usuario de respuestas de la IA/asesor.
+  last_user_message_at: string | null;
   awaiting_reply: boolean;
 }
 
